@@ -1,0 +1,12 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<odoo>
+    <record model="ir.module.category" id="ventas_pos_group">
+        <field name="name">Ventas POS</field>
+        <field name="description">Ventas POS</field>
+        <field name="sequence">1</field>
+    </record>
+    <record id="ventas_pos_cajero" model="res.groups">
+        <field name="name">Cajero</field>
+        <field name="category_id" ref="ventas_pos_group"/>
+    </record>
+</odoo>

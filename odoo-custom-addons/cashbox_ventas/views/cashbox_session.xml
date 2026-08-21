@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_cashbox_ventas" model="ir.ui.view">
+        <field name="name">account_cashbox.ventas</field>
+        <field name="model">account.cashbox.session</field>
+        <field name="inherit_id" ref="account_cashbox.view_account_cashbox_session_form"/>
+        <field name="arch" type="xml">
+            <field name="line_ids" position="after">
+            <field name="resumen_ids" invisible="True"/>
+	    <group>
+		<field nolabel="1" colspan="2" name="ventas_ids">
+	   	    <tree create="false" delete="false">
+			<field name="type_pay_id" />
+			<field name="type_id" />
+			<field name="count" />
+			<field name="amount" sum="Total"/>
+			<field name="ventas_ids"/>
+		    </tree>
+		</field>
+		<field nolabel="1" colspan="2" name="gastos_ids">
+	   	    <tree create="false" delete="false">
+			<field name="type_pay_id" />
+			<field name="type_id" />
+			<field name="count" />
+			<field name="amount" sum="Total" />
+		    </tree>
+		</field>
+	    </group>
+	    <group>
+		<field nolabel="1" colspan="2" name="ctacte_ids">
+	   	    <tree create="false" delete="false">
+			<field name="type_pay_id" />
+			<field name="type_id" />
+			<field name="count" />
+			<field name="amount" sum="Total"/>
+		    </tree>
+		</field>
+		<field nolabel="1" colspan="2" name="transf_ids">
+	   	    <tree create="false" delete="false">
+			<field name="type_pay_id" />
+			<field name="type_id" />
+			<field name="count" />
+			<field name="amount" sum="Total" />
+		    </tree>
+		</field>
+	    </group>
+	    </field>
+            <button name="action_account_cashbox_session_close" position="after">
+	        <button name="action_account_cashbox_session_close_auth" type="object" string="Validar Con Diferencia" attrs="{'invisible' : [('state', '!=', 'closing_control')]}" class="oe_highlight"/>
+	    </button>
+	</field>
+    </record>
+</odoo>

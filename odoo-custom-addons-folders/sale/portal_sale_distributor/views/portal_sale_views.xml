@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<odoo>
+
+    <menuitem
+        id="sale_menu"
+        name="Sales"
+        groups="group_portal_backend_distributor"
+        web_icon="sale_management,static/description/icon.png"
+        />
+
+    <menuitem
+        id="quotations"
+        name="Quotations"
+        action="sale.action_quotations"
+        parent="sale_menu"
+        sequence="10"
+        />
+
+    <menuitem
+        id="sale_order"
+        name="Sales Order"
+        action="sale.action_orders"
+        parent="sale_menu"
+        sequence="20"
+        />
+
+    <record id="view_order_form" model="ir.ui.view">
+        <field name="name">sale.order.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">40</field>
+        <field name="arch" type="xml">
+            <header position="after">
+                <header groups="portal_sale_distributor.group_portal_backend_distributor">
+                    <field name="invoice_count" invisible="1"/>
+                    <button name="action_confirm_distributor" states="draft,sent" string="Confirm Sale" class="btn-primary" type="object" context="{'show_sale': True}"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,sent,sale,done"/>
+                </header>
+            </header>
+            <button name="action_view_invoice" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </button>
+            <field name="validity_date" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </field>
+            <field name="validity_date" position="after">
+                <field name="validity_date" attrs="{'invisible':[('state', 'in', ('draft', 'sent'))]}" groups="portal_sale_distributor.group_portal_backend_distributor"/>
+            </field>
+            <xpath expr="//button[@name='action_update_prices']" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_open_delivery_wizard']" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_open_delivery_wizard'][1]" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_open_delivery_wizard'][2]" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_open_delivery_wizard']" position="after">
+                <button
+                    string="Add shipping"
+                    name="action_open_delivery_wizard"
+                    type="object"
+                    groups="portal_sale_distributor.group_portal_backend_distributor"
+                    attrs="{'invisible': ['|', '|', '|',('is_all_service', '=', True), ('order_line', '=', []), ('delivery_set', '=', True), ('state','not in',('draft','sent'))]}"
+                />
+            </xpath>
+            <field name="pricelist_id" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </field>
+            <field name="pricelist_id" position="after">
+                <field name="pricelist_id" invisible="1"/>
+            </field>
+            <field name="payment_term_id" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </field>
+            <xpath expr="//field[@name='order_line']/tree//widget[@name='qty_at_date_widget']" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+            <button name="%(sale_ux.action_sale_global_discount_wizard_form)d" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </button>
+            <field name="sale_order_template_id" position="attributes">
+                <attribute name="groups">!portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </field>
+            <xpath expr="//field[@name='order_line']/tree//field[@name='product_uom'][2]" position="attributes">
+                <attribute name="groups">uom.group_uom,portal_sale_distributor.group_portal_backend_distributor</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

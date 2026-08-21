@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_contol_caja_wizard" model="ir.ui.view">
+        <field name="name">control.caja.wizard.form</field>
+        <field name="model">caja.pagos.control</field>
+        <field name="arch" type="xml">
+	    <form string="Control Caja" >
+	        <h1>
+                    <group>
+			<field name="caja" />
+			<field name="monto" />
+                    </group>
+	        </h1>
+                <footer>
+                    <button
+                        name="control"
+                        string="Controlar"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        />
+                    <button
+                        string="Cancel"
+                        class="btn-secondary"
+                        special="cancel"
+                        />
+                </footer>
+
+            </form>
+        </field>
+    </record>
+    <record id="action_control_caja_wizard" model="ir.actions.act_window">
+        <field name="name">Control Caja</field>
+        <field name="res_model">caja.pagos.control</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

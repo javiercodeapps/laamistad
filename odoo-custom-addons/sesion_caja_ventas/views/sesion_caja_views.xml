@@ -1,0 +1,32 @@
+<odoo>
+    <record id="view_sesion_caja_form" model="ir.ui.view">
+        <field name="name">sesion.caja.form</field>
+        <field name="model">sesion.caja</field>
+        <field name="arch" type="xml">
+            <form string="Sesión de Caja">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="user_id"/>
+                        <field name="fecha_inicio"/>
+                        <field name="fecha_fin"/>
+                        <field name="efectivo_inicio"/>
+                        <field name="efectivo_fin"/>
+                        <field name="venta_total" readonly="1"/>
+                        <field name="diferencia" readonly="1"/>
+                        <field name="state"/>
+                    </group>
+                    <footer>
+                        <button name="cerrar_sesion" type="object" string="Cerrar Sesión" attrs="{'invisible': [('state', '=', 'cerrada')]}"/>
+                    </footer>
+                    <field name="sale_order_ids">
+                        <tree>
+                            <field name="name"/>
+                            <field name="amount_total"/>
+                        </tree>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

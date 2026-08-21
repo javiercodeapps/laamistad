@@ -1,0 +1,24 @@
+<odoo>
+    <record id="res_partner_tree_amistad" model="ir.ui.view">
+        <field name="name">res.partner.tree.amistad</field>
+        <field name="model">res.partner</field>
+	<field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="display_name" position="before">
+		<field name="ref" string="Ref"/>
+	    </field>
+        </field>
+    </record>
+    <record id="res_partner_from_amistad" model="ir.ui.view">
+        <field name="name">res.partner.from.amistad</field>
+        <field name="model">res.partner</field>
+	<field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="ref" position="replace">
+	    </field>
+            <field name="category_id" position="after">
+		<field name="ref" string="Ref"/>
+	    </field>
+        </field>
+    </record>
+</odoo>

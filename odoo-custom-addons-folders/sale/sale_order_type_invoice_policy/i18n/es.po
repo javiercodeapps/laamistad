@@ -1,0 +1,89 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* sale_order_type_invoice_policy
+# 
+# Translators:
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-27 01:41+0000\n"
+"PO-Revision-Date: 2023-06-02 18:18+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
+"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Language: es\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields.selection,name:sale_order_type_invoice_policy.selection__sale_order_type__invoice_policy__by_product
+msgid "Defined by Product"
+msgstr "Definido por Producto"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields.selection,name:sale_order_type_invoice_policy.selection__sale_order_type__invoice_policy__delivery
+msgid "Delivered quantities"
+msgstr "Cantidades entregadas"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields,help:sale_order_type_invoice_policy.field_sale_order_type__invoice_policy
+msgid "If you choose prepaid you..."
+msgstr "Si elige prepago usted ..."
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields,field_description:sale_order_type_invoice_policy.field_sale_order_type__invoice_policy
+#: model_terms:ir.ui.view,arch_db:sale_order_type_invoice_policy.sot_sale_order_type_form_view
+msgid "Invoicing Policy"
+msgstr "Política de Facturación"
+
+#. module: sale_order_type_invoice_policy
+#. odoo-python
+#: code:addons/sale_order_type_invoice_policy/models/sale_order_line.py:0
+#, python-format
+msgid "Invoicing Policy %s not implemented!"
+msgstr "Política de Facturación %s no implementada!"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields.selection,name:sale_order_type_invoice_policy.selection__sale_order_type__invoice_policy__order
+#: model:sale.order.type,name:sale_order_type_invoice_policy.ordered_sale_type
+msgid "Ordered quantities"
+msgstr "Cantidades pedidas"
+
+#. module: sale_order_type_invoice_policy
+#: model:sale.order.type,name:sale_order_type_invoice_policy.prepaid_sale_type
+msgid "Pre Paid"
+msgstr "Pre-Pago"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields.selection,name:sale_order_type_invoice_policy.selection__sale_order_type__invoice_policy__prepaid_block_delivery
+msgid "Prepaid - Block Delivery"
+msgstr "Prepago - Entrega Bloqueada"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model.fields.selection,name:sale_order_type_invoice_policy.selection__sale_order_type__invoice_policy__prepaid
+msgid "Prepaid - Block Reserve and Delivery"
+msgstr "Prepago - Reserva y Entrega Bloqueadas"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model,name:sale_order_type_invoice_policy.model_sale_order_line
+msgid "Sales Order Line"
+msgstr "Línea de pedido de venta"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model,name:sale_order_type_invoice_policy.model_stock_move
+msgid "Stock Move"
+msgstr "Movimiento de stock"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model,name:sale_order_type_invoice_policy.model_stock_picking
+msgid "Transfer"
+msgstr "Traslado"
+
+#. module: sale_order_type_invoice_policy
+#: model:ir.model,name:sale_order_type_invoice_policy.model_sale_order_type
+msgid "Type of sale order"
+msgstr "Tipo de pedido de venta"

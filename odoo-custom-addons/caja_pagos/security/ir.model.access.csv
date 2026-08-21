@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+caja_pagos,caja.pagos,model_caja_pagos,,1,1,1,1
+caja_pagos_tipo,caja.pagos.tipo,model_caja_pagos_tipo,,1,1,1,1
+caja_pagos_control,caja.pagos.control,model_caja_pagos_control,,1,1,1,1

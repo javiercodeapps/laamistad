@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+account_cashbox_sale_line,account.cashbox.sale.line,model_account_cashbox_sale_line,,1,1,1,1
+account_cashbox_resumen,account.cashbox.resumen,model_account_cashbox_resumen,,1,1,1,1
+account_cashbox_resumen_config,account.cashbox.resumen_config,model_account_cashbox_resumen_config,,1,1,1,1

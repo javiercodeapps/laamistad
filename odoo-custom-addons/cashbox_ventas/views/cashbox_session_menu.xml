@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="cashbox_ventas_resumen" model="ir.actions.act_window">
+        <field name="name">Resumen</field>
+        <field name="res_model">account.cashbox.resumen</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+    <record id="cashbox_ventas_resumen_config" model="ir.actions.act_window">
+        <field name="name">Configuracion</field>
+        <field name="res_model">account.cashbox.resumen.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_account_cashbox_resumen" name="Resumen"
+	    parent="account_cashbox.menu_pop_dashboard" 
+	    sequence="200"/>
+    <menuitem id="menu_cashbox_resumen_resumen" name="Resumen"
+          parent="menu_account_cashbox_resumen"
+          action="cashbox_ventas_resumen" />
+    <menuitem id="menu_cashbox_resumen_config" name="Configuracion"
+          parent="menu_account_cashbox_resumen"
+          action="cashbox_ventas_resumen_config" />
+</odoo>

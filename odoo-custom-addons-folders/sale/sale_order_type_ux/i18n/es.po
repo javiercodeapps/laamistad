@@ -1,0 +1,125 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* sale_order_type_ux
+# 
+# Translators:
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-02-02 13:58+0000\n"
+"PO-Revision-Date: 2023-04-10 19:30+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
+"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Language: es\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: sale_order_type_ux
+#: model_terms:ir.ui.view,arch_db:sale_order_type_ux.sale_order_type_form_view
+msgid ""
+"<i class=\"fa fa-exclamation-circle\" data-tooltip=\"This field will not be "
+"taken into account for sales that come from eCommerce, in this case you must"
+" configure it directly in Settings\" title=\"This field will not be taken "
+"into account for sales that come from eCommerce, in this case you must "
+"configure it directly in Settings\" aria-hidden=\"true\"/>"
+msgstr ""
+"<i class=\"fa fa-exclamation-circle\" data-tooltip=\"Tener en cuenta que "
+"este campo no se tomará en cuenta para ventas que provengan del eCommerce, "
+"en dicho caso debe configurarlo directamente en Ajustes &gt; Sitio web\" "
+"title=\"Tener en cuenta que este campo no se tomará en cuenta para ventas "
+"que provengan del eCommerce, en dicho caso debe configurarlo directamente en"
+" Ajustes &gt; Sitio web\" aria-hidden=\"true\"/>"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order_type__active
+msgid "Active"
+msgstr "Activo"
+
+#. module: sale_order_type_ux
+#: model_terms:ir.ui.view,arch_db:sale_order_type_ux.sale_order_type_form_view
+#: model_terms:ir.ui.view,arch_db:sale_order_type_ux.sale_order_type_search_view
+msgid "Archived"
+msgstr "Archivado"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order_type__journal_id
+msgid "Billing Journal"
+msgstr "Diario de facturación"
+
+#. module: sale_order_type_ux
+#: model:sale.order.type,name:sale_order_type_ux.default_sale_order_type
+msgid "Default"
+msgstr ""
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order_type__fiscal_position_id
+msgid "Fiscal Position"
+msgstr "Posición Fiscal"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,help:sale_order_type_ux.field_sale_order_type__fiscal_position_id
+msgid ""
+"If you choose a fiscal position then this fiscal positioon would be used as "
+"default instead of the automatically detected or setted on the partner"
+msgstr ""
+
+#. module: sale_order_type_ux
+#: model:ir.model,name:sale_order_type_ux.model_account_move
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: sale_order_type_ux
+#: model_terms:ir.ui.view,arch_db:sale_order_type_ux.sale_order_type_form_view
+msgid "Notes"
+msgstr "Notas"
+
+#. module: sale_order_type_ux
+#: model_terms:ir.ui.view,arch_db:sale_order_type_ux.sale_order_type_form_view
+msgid "Predefined fields"
+msgstr "Campos predefinidos"
+
+#. module: sale_order_type_ux
+#: model:ir.model,name:sale_order_type_ux.model_sale_advance_payment_inv
+msgid "Sales Advance Payment Invoice"
+msgstr "Pago anticipado para factura de ventas"
+
+#. module: sale_order_type_ux
+#: model:ir.model,name:sale_order_type_ux.model_sale_order
+msgid "Sales Order"
+msgstr "Pedido de venta"
+
+#. module: sale_order_type_ux
+#: model:ir.model,name:sale_order_type_ux.model_sale_order_line
+msgid "Sales Order Line"
+msgstr "Línea de pedido de venta"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order_type__sequence
+msgid "Sequence"
+msgstr "Secuencia"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,help:sale_order_type_ux.field_sale_order_type__active
+msgid "Set active to false to hide the type of sale without removing it."
+msgstr ""
+"Establezca activo en falso para ocultar el tipo de venta sin eliminarlo."
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order_type__team_id
+msgid "Team"
+msgstr "Equipo"
+
+#. module: sale_order_type_ux
+#: model:ir.model.fields,field_description:sale_order_type_ux.field_sale_order__type_id
+msgid "Type"
+msgstr "Tipo"
+
+#. module: sale_order_type_ux
+#: model:ir.model,name:sale_order_type_ux.model_sale_order_type
+msgid "Type of sale order"
+msgstr "Tipo de pedido de venta"

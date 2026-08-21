@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_scan_qr_wizard" model="ir.ui.view">
+        <field name="name">scan.qr.wizard.form</field>
+        <field name="model">scan.qr.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Scan QR Code">
+                <group>
+                    <field name="sale_order_id" string="Pedido" attrs="{'invisible': [('sale_order_id', '=', False)]}"/>
+                    <field name="qr_code"/>
+		    <field name="clave" string="Clave" attrs="{'invisible': [('sale_order_id', '=', False)]}" />
+                </group>
+                <footer>
+		<!--
+                    <button
+                        name="action_process_qr_efectivo"
+                        string="Efectivo"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '!=', False)]}"
+                        />
+                    <button
+                        name="action_process_qr_tarjeta"
+                        string="Tarjeta"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '!=', False)]}"
+                        />
+                    <button
+                        name="action_process_qr_mercadopago"
+                        string="Mercado Pago"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '!=', False)]}"
+                        />
+                    <button
+                        name="action_process_qr_cuentacorriente"
+                        string="Cuenta Corriente"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '!=', False)]}"
+                        />
+                    <button
+                        name="process_qr_add_lines"
+                        string="Agregar Productos"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '=', False)]}"
+                        />
+                    <button
+                        name="action_process_qr"
+                        string="Ver Productos"
+                        type="object"
+                        class="btn btn-secondary px-5 py-4"
+                        />
+	            -->
+	            <!-- Se agregan 2 botones de confirmar , si tiene o no sale order -->
+                    <button
+                        name="action_process_qr_efectivo"
+                        string="Agregar Productos"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '!=', False)]}"
+                        />
+                    <button
+                        name="process_qr_add_lines"
+                        string="Agregar Productos"
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '=', False)]}"
+                        />
+                    <button
+                        name="process_qr_add_lines_gratis"
+                        string="Agregar Productos Gratis "
+                        type="object"
+                        class="btn btn-primary px-5 py-4"
+                        attrs="{'invisible': [('sale_order_id', '=', False)]}"
+                        />
+                    <button
+                        string="Cancel"
+                        class="btn-secondary"
+                        special="cancel"
+                        />
+                </footer>
+
+                <group>
+
+<!-- Saco la lista de codigos del wizard 
+<field name="product_lines" nolabel="1">
+    <tree create="0" edit="0" delete="0" form="0">
+        <field name="name"/>
+        <field name="product_uom_qty" digits="2"/>
+        <field name="price_unit"/>
+        <field name="price_subtotal"/>
+    </tree>
+</field>
+
+                    <group>
+                        <field name="total_amount" readonly="1"/>
+                    </group>
+-->
+                </group>
+
+            </form>
+        </field>
+    </record>
+    <record id="action_scan_qr_wizard" model="ir.actions.act_window">
+        <field name="name">Scan QR Code</field>
+        <field name="res_model">scan.qr.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_qr_sale_order"
+          name="Scan QR Code"
+          sequence="1"
+          action="action_scan_qr_wizard"
+          web_icon="scan_qr,static/description/icon.png"/>
+
+    <menuitem id="menu_qr_sale_order_so"
+          name="Scan QR Code"
+          sequence="2"
+	  parent="sale.sale_menu_root"
+          action="action_scan_qr_wizard"/>
+
+</odoo>

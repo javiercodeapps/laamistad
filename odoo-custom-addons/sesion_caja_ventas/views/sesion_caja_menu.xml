@@ -1,0 +1,15 @@
+<odoo>
+    <!-- Menú Raíz -->
+    <menuitem id="menu_sesion_caja_root" name="Caja" sequence="1"/>
+    
+    <!-- Acción -->
+    <record id="action_sesion_caja" model="ir.actions.act_window">
+        <field name="name">Sesión de Caja</field>
+        <field name="res_model">sesion.caja</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menú de Sesión de Caja -->
+    <menuitem id="menu_sesion_caja" name="Sesiones" parent="menu_sesion_caja_root" action="action_sesion_caja"/>
+</odoo>

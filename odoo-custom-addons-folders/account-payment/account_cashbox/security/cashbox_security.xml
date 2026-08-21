@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<odoo>
+
+    <!--record id="account_cashbox.category_for_cashbox" model="ir.module.category">
+        <field name="name">Cashbox Specila Views Category</field>
+        <field name="description">Cashbox Specila Views Category</field>
+        <field name="sequence">15</field>
+    </record-->
+
+    <record id="cashbox_view_access" model="res.groups">
+        <field name="name">Cashbox Special Views</field>
+        <!-- field name="category_id" ref="account_cashbox.category_for_cashbox"/-->
+    </record>
+
+    <record id="cashbox_company_rule" model="ir.rule">
+        <field name="name">Cashbox multi-company</field>
+        <field name="model_id" ref="model_account_cashbox"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="cashbox_session_company_rule" model="ir.rule">
+        <field name="name">Cashbox Session multi-company</field>
+        <field name="model_id" ref="model_account_cashbox_session"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="cashbox_user" model="ir.rule">
+        <field name="name">Cashbox Invoicing User</field>
+        <field name="model_id" ref="model_account_cashbox"/>
+        <field name="domain_force">['|', ('allowed_res_users_ids', '=', user.id),('allowed_res_users_ids', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice'))]"/>
+    </record>
+
+    <record id="cashbox_admin" model="ir.rule">
+        <field name="name">Cashbox Invoicing Manager</field>
+        <field name="model_id" ref="model_account_cashbox"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_manager'))]"/>
+    </record>
+
+    <!-- invoicing user, only sessions -->
+    <record id="cashbox_session_user" model="ir.rule">
+        <field name="name">Cashbox Session Invoicing User</field>
+        <field name="model_id" ref="model_account_cashbox_session"/>
+        <field name="domain_force">['|', ('user_ids', '=', user.id),('user_ids', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice'))]"/>
+    </record>
+
+    <!-- admin user, all sessions -->
+    <record id="cashbox_session_admin" model="ir.rule">
+        <field name="name">Cashbox Session Invoicing Manager</field>
+        <field name="model_id" ref="model_account_cashbox_session"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_manager'))]"/>
+    </record>
+
+</odoo>

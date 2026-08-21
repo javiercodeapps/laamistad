@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_allow_any_user_as_salesman" model="ir.ui.view">
+        <field name="name">sale.order.form.salesman</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="replace">
+                <field name="user_id" widget="many2one_avatar_user" groups="!sale_ux.group_allow_any_user_as_salesman"/>
+                <field name="user_id" widget="many2one_avatar_user"  domain="[]" groups="sale_ux.group_allow_any_user_as_salesman"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_order_form" model="ir.ui.view">
+        <field name="name">sale.order.form</field>
+        <field name="model">sale.order</field>
+        <field name="priority">15</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Make subtotal included / excluded optional and not related to tax b2b/b2c -->
+            <xpath expr="//field[@name='order_line']/tree//field[@name='price_subtotal']" position="attributes">
+                <attribute name="groups"></attribute>
+                <attribute name="attrs"></attribute>
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/tree//field[@name='price_total']" position="attributes">
+                <attribute name="groups"></attribute>
+                <attribute name="attrs"></attribute>
+                <attribute name="optional">hide</attribute>
+            </xpath>
+
+            <group name="note_group" position="after">
+                <newline/>
+                <field name="internal_notes" nolabel="1" placeholder="Internal Notes..." groups="base.group_user"/>
+            </group>
+
+            <!-- add buttons to send and print for state done too -->
+            <xpath expr="//button[@name='action_quotation_send'][4]" position="attributes">
+                <attribute name="states">sent,sale,done</attribute>
+            </xpath>
+            <group name="sale_info">
+                <field name="force_invoiced_status" groups="base.group_no_one"/>
+            </group>
+
+            <button name="action_cancel" position="attributes">
+                <attribute name="states">draft,sent,sale,done</attribute>
+            </button>
+            <field name="partner_id" position="after">
+                <field name="commercial_partner_id" invisible="1"/>
+            </field>
+            <field name="analytic_account_id" position="attributes">
+                <attribute name="domain">['|',('partner_id','=',False), ('commercial_partner_id','=',commercial_partner_id)]</attribute>
+            </field>
+            <group name="order_details" position="inside">
+                <div groups="!product.group_product_pricelist">
+                  <button name="action_update_prices" type="object" string=" Update Prices" icon="fa-refresh" attrs="{'invisible': [('state', 'not in', ['draft', 'sent'])]}"/>
+                </div>
+            </group>
+            <xpath expr="//group[@name='order_details']//div[hasclass('o_row')]/button" position="attributes">
+                <attribute name="attrs">{'invisible': [('state','not in',['draft','sent'])]}</attribute>
+                <attribute name="confirm"></attribute>
+            </xpath>
+            <xpath expr="//group[@name='note_group']" position="before">
+                <div class="oe_right">
+                    <button name="%(action_sale_global_discount_wizard_form)d" string="Set Global Discount" type="action" attrs="{'invisible':[('state','not in',['draft','sent'])]}" groups="product.group_discount_per_so_line"/>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/tree//field[@name='discount']" position="after">
+                <button name="action_sale_history" type="object" icon="fa-history" title="Sale History"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_reference_on_tree_view" model="ir.ui.view">
+        <field name="name">sale.order.reference.on_tree</field>
+        <field name="model">sale.order</field>
+        <field name="priority" eval="99"/>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field groups="sale_ux.group_reference_on_tree_and_main_form" name="client_order_ref"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- si bien nosotros no usamos esta vista desde portal distributor u otros lugares puede llegar a usarse -->
+    <record id="view_reference_on_quotation_tree_view" model="ir.ui.view">
+        <field name="name">sale.quotation.reference.on_tree</field>
+        <field name="model">sale.order</field>
+        <field name="priority" eval="99"/>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                <field groups="sale_ux.group_reference_on_tree_and_main_form" name="client_order_ref"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_reference_on_main_form_view" model="ir.ui.view">
+        <field name="name">sale.order.reference.on_main_form</field>
+        <field name="model">sale.order</field>
+        <field name="priority" eval="99"/>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="client_order_ref" position="attributes">
+                <attribute name="groups">!sale_ux.group_reference_on_tree_and_main_form</attribute>
+            </field>
+            <field name="partner_shipping_id" position="after">
+                <field groups="sale_ux.group_reference_on_tree_and_main_form" name="client_order_ref"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_order_tree" model="ir.ui.view">
+        <field name="name">sale.order.tree</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <!-- move state before invoice status and make it visible -->
+            <field name="state" position="replace"/>
+            <field name="invoice_status" position="before">
+                <field name="state"/>
+            </field>
+            <field name="date_order" position="before">
+                <field name="create_date" widget="date" optional="hide"/>
+            </field>
+
+            <!-- As we unify menus we make the draft more visible -->
+            <tree position="attributes">
+                <attribute name="decoration-info">state in ['draft', 'sent']</attribute>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_sales_order_filter" model="ir.ui.view">
+        <field name="name">sale.order.filter</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_view_search_inherit_sale"/>
+        <field name="arch" type="xml">
+            <filter name="to_invoice" position="before">
+                <filter string="Quotations" name="draft" domain="[('state','in',('draft', 'sent'))]"/>
+                <filter string="Sales Orders" name="sales" domain="[('state','in',('sale','done'))]"/>
+                <separator/>
+            </filter>
+            <filter name="order_month" position="after">
+                <filter string="Create Date" name="create_date" domain="[]" context="{'group_by': 'create_date'}"/>
+            </filter>
+            <filter name="to_invoice" position="after">
+                <filter name="invoiced" string="Invoiced" domain="[('invoice_status','=', 'invoiced')]"/>
+            </filter>
+        </field>
+    </record>
+
+    <!-- make sales orders action show all sale.order records -->
+    <record id="sale.action_orders" model="ir.actions.act_window">
+        <field name="domain">[]</field>
+    </record>
+
+    <!--Hide Quotations Menu -->
+    <record model="ir.ui.menu" id="sale.menu_sale_quotations">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- sequence 1 instead of to to orders menu so that it is before lines -->
+    <record model="ir.ui.menu" id="sale.menu_sale_order">
+        <field name="sequence">1</field>
+    </record>
+
+    <!--Hide Sale Invoicing Menu -->
+    <record model="ir.ui.menu" id="sale.menu_sale_invoicing">
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>

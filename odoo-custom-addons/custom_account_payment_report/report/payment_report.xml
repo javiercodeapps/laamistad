@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Paper Format -->
+    <record id="paperformat_thermal_80mm" model="report.paperformat">
+        <field name="name">Thermal 80mm</field>
+        <field name="default" eval="True" />
+        <field name="format">custom</field>
+        <field name="page_height">600</field>
+        <field name="page_width">80</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">0</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False" />
+        <field name="header_spacing">0</field>
+        <field name="dpi">300</field>
+    </record>
+
+    <!-- Report Action -->
+    <record id="action_report_payment_custom" model="ir.actions.report">
+        <field name="name">Comprobante de Pago Personalizado</field>
+        <field name="model">account.payment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_account_payment_report.report_payment_custom_document</field>
+        <field name="report_file">custom_account_payment_report.report_payment_custom_document</field>
+        <field name="print_report_name">'Pago - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="account.model_account_payment"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="paperformat_thermal_80mm"/>
+    </record>
+
+    <!-- Main Template Wrapper -->
+    <template id="report_payment_custom_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.basic_layout">
+                    <div class="page" style="font-size: 13px; font-family: 'Inconsolata', 'Courier New', monospace;">
+                        
+                        <!-- Header -->
+                        <div class="text-center border-bottom mb-2 pb-2">
+                            <h3 class="mb-1">Recaudacion</h3>
+                            <strong t-field="o.company_id.name" style="font-size: 15px;"/><br/>
+                            <span t-field="o.name"/><br/>
+                            <span t-field="o.date"/>
+                        </div>
+
+                        <!-- Partner Info -->
+                        <div class="mb-2">
+                            <strong>Proveedor:</strong><br/>
+                            <span t-field="o.partner_id.name"/>
+                        </div>
+
+                        <!-- Payment Details -->
+                        <div class="mb-2 border-top pt-2">
+                            <div class="row">
+                                <div class="col-12">
+                                    <strong>Ref:</strong> <span t-field="o.ref"/>
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-12">
+                                    <strong>Diario:</strong> <span t-field="o.journal_id.name"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="text-center border-top border-bottom mt-2 pt-2 pb-2">
+                            <h2 style="font-weight: bold;">
+                                <span t-field="o.amount" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                            </h2>
+                        </div>
+                        
+                        <!-- Footer / Extra info -->
+                       
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+    <!-- Report Action for Payment Group -->
+    <record id="action_report_payment_group_custom" model="ir.actions.report">
+        <field name="name">Comprobante de Pago Personalizado (Group)</field>
+        <field name="model">account.payment.group</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_account_payment_report.report_payment_group_custom_document</field>
+        <field name="report_file">custom_account_payment_report.report_payment_group_custom_document</field>
+        <field name="print_report_name">'Pago Agrupado - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="account_payment_group.model_account_payment_group"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="paperformat_thermal_80mm"/>
+    </record>
+
+    <!-- Payment Group Template -->
+    <template id="report_payment_group_custom_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.basic_layout">
+                    <div class="page" style="font-size: 13px; font-family: 'Inconsolata', 'Courier New', monospace;">
+                        
+                        <!-- Header -->
+                        <div class="text-center border-bottom mb-2 pb-2">
+                            <h3 class="mb-1">Pago</h3>
+                            <strong t-field="o.company_id.name" style="font-size: 15px;"/><br/>
+                            <span t-field="o.name"/><br/>
+                            <span t-field="o.payment_date"/>
+                        </div>
+
+                        <!-- Partner Info -->
+                        <div class="mb-2">
+                            <strong>Proveedor:</strong><br/>
+                            <span t-field="o.partner_id.name"/>
+                        </div>
+
+                        <!-- Payment Details -->
+                        <div class="mb-2 border-top pt-2">
+                             <div class="row">
+                                <div class="col-12">
+                                    <strong>Ref:</strong> <span t-field="o.communication"/>
+                                </div>
+                                <div class="col-12">
+				    <strong>Diario:</strong> <span t-field="o.move_line_ids[0].journal_id.name"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount -->
+                        <div class="text-center border-top border-bottom mt-2 pt-2 pb-2">
+                            <h2 style="font-weight: bold;">
+                                <span t-esc="o.payments_amount * -1" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                            </h2>
+                        </div>
+                        
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

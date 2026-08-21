@@ -1,0 +1,19 @@
+<odoo>
+
+    <record id="account_cashbox_move_action" model="ir.actions.act_window">
+        <field name="name">Asientos de Diferencias</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('journal_id.type', '=', 'general'), ('ref', 'ilike', 'Cierre Sesión Caja')]</field>
+        <field name="context">{}</field>
+    </record>
+
+    <menuitem id="menu_account_cashbox_closures"
+        name="Asientos de Diferencias"
+        parent="account_cashbox.menu_pop_dashboard"
+        action="account_cashbox_move_action"
+        groups="account_cashbox.cashbox_view_access"
+        sequence="200"
+        />
+
+</odoo>

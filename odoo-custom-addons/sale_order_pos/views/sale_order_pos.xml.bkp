@@ -1,0 +1,88 @@
+<odoo>
+    <record id="view_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+	    <field name="partner_shipping_id" position="before">
+               <field name="is_admin" invisible="True"/>
+	       <field name="validity_date" attrs="{'invisible': [('state', 'in', ['sale', 'done'])]}"/>
+               <div class="o_td_label" groups="base.group_no_one" attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}">
+                      <label for="date_order" string="Quotation Date"/>
+               </div>
+              <field name="date_order" nolabel="1" groups="base.group_no_one" attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}"/>
+              <div class="o_td_label" attrs="{'invisible': [('state', 'in', ['draft', 'sent'])]}">
+                   <label for="date_order" string="Order Date"/>
+              </div>
+              <field name="date_order" attrs="{'invisible': [('state', 'in', ['draft', 'sent'])]}" nolabel="1"/>
+              <field name="show_update_pricelist" invisible="1"/>
+              <label for="pricelist_id" groups="product.group_product_pricelist"/>
+              <div groups="product.group_product_pricelist" class="o_row">
+                  <field name="pricelist_id" options="{'no_open':True,'no_create': True}"/>
+                  <button name="action_update_prices" type="object" string=" Update Prices" help="Recompute all prices based on this pricelist" class="btn-link mb-1 px-0" icon="fa-refresh" confirm="This will update all unit prices based on the currently set pricelist." attrs="{'invisible': ['|', ('show_update_pricelist', '=', False), ('state', 'in', ['sale', 'done', 'cancel'])]}"/>
+              </div>
+              <field name="company_id" invisible="1"/>
+              <field name="currency_id" invisible="1"/>
+              <field name="pricelist_id" invisible="1" groups="!product.group_product_pricelist"/>
+              <field name="tax_country_id" invisible="1"/>
+              <field name="payment_term_id" options="{'no_open':True,'no_create': True}"/>
+              <field name="sale_discount_percent" />
+              <field name="sale_discount" />
+	    </field>
+             <button name="action_cancel" position="attributes">
+		     <attribute name="attrs">{'invisible': ['|', ('state', 'not in', ['draft', 'sent','sale']), ('is_admin','=',False), ('id', '=', False)]}</attribute>
+		     <attribute name="context">{'disable_cancel_warning': True}</attribute>
+	     </button>
+             <field name="order_line" position="attributes">
+		     <attribute name="attrs">{'readonly': ['|',('is_admin','=',False),('state', 'in', ('done','cancel'))]}</attribute>
+	     </field>
+	    <xpath expr="//group[@name='order_details']" position="replace">
+		      <group class="oe_subtotal_footer oe_right" colspan="4" name="sale_total">
+                          <h2>
+                            <field name="tax_totals" widget="account-tax-totals-field" nolabel="1" colspan="4" readonly="1"/>
+			    <table class="oe_right">
+                              <tr>
+                                <td><label for="sale_with_discount">Con Descuento:</label></td>
+                                <td>
+                                    <field name="sale_with_discount" colspan="4" attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}"/>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td><label for="efectivo">Efectivo:</label></td>
+                                <td>
+                                     <field name="efectivo" colspan="4" attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}"/>
+                                 </td>
+                              </tr>
+                              <tr>
+                                <td><label for="vuelto">Vuelto:</label></td>
+                                <td>
+                                    <field name="vuelto"  colspan="4" attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}"/>
+                                </td>
+                              </tr>
+                            </table>
+                          </h2>
+	    	      <button name="modifico" type="object" string="Modifico" class="oe_highlight btn-primary"/>
+                      </group>
+	    </xpath>
+        </field>
+    </record>
+    <record id="view_sale_order_filter" model="ir.ui.view">
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_view_search_inherit_quotation"/>
+	<field name="arch" type="xml">
+	    <filter name="my_quotation" position="after">
+                <filter name="create_date" string="Hoy" domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',datetime.datetime.now().strftime('%Y-%m-%d 23:23:59'))]" />
+            </filter>
+        </field>
+    </record>
+    <record id="view_sale_order_filter_sale" model="ir.ui.view">
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_view_search_inherit_sale"/>
+	<field name="arch" type="xml">
+	    <filter name="my_sale_orders_filter" position="after">
+                <filter name="create_date" string="Hoy" domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',datetime.datetime.now().strftime('%Y-%m-%d 23:23:59'))]" />
+            </filter>
+        </field>
+    </record>
+</odoo>

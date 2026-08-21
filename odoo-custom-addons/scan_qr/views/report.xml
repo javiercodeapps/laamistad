@@ -1,0 +1,10 @@
+<odoo>
+    <report
+        id="action_report_sale_order_with_invoice"
+        model="sale.order"
+        string="Sale Order with Invoices"
+        report_type="qweb-pdf"
+        file="scan_qr.report_sale_order_with_invoice"
+        name="scan_qr.report_sale_order_with_invoice"
+    />
+</odoo>

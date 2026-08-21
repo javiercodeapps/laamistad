@@ -1,0 +1,170 @@
+<odoo>
+  <record id="view_order_form_inherit" model="ir.ui.view">
+    <field name="name">sale.order.form.inherit</field>
+    <field name="model">sale.order</field>
+    <field name="inherit_id" ref="sale.view_order_form" />
+    <field name="arch" type="xml">
+      <data>
+        <field name="partner_shipping_id" position="before">
+          <field name="is_admin" invisible="True" />
+          <field name="validity_date"
+          attrs="{'invisible': [('state', 'in', ['sale', 'done'])]}" />
+          <div class="o_td_label" groups="base.group_no_one"
+          attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}">
+
+            <label for="date_order" string="Quotation Date" />
+          </div>
+          <field name="date_order" nolabel="1"
+          groups="base.group_no_one"
+          attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}" />
+          <div class="o_td_label"
+          attrs="{'invisible': [('state', 'in', ['draft', 'sent'])]}">
+
+            <label for="date_order" string="Order Date" />
+          </div>
+          <field name="date_order"
+          attrs="{'invisible': [('state', 'in', ['draft', 'sent'])]}"
+          nolabel="1" />
+          <field name="show_update_pricelist" invisible="1" />
+          <label for="pricelist_id"
+          groups="product.group_product_pricelist" />
+          <div groups="product.group_product_pricelist"
+          class="o_row">
+            <field name="pricelist_id"
+            options="{'no_open':True,'no_create': True}" />
+            <button name="action_update_prices" type="object"
+            string="Update Prices"
+            help="Recompute all prices based on this pricelist"
+            class="btn-link mb-1 px-0" icon="fa-refresh"
+            confirm="This will update all unit prices based on the currently set pricelist."
+            attrs="{'invisible': ['|', ('show_update_pricelist', '=', False), ('state', 'in', ['sale', 'done', 'cancel'])]}" />
+          </div>
+          <field name="company_id" invisible="1" />
+          <field name="currency_id" invisible="1" />
+          <field name="pricelist_id" invisible="1"
+          groups="!product.group_product_pricelist" />
+          <field name="tax_country_id" invisible="1" />
+          <field name="payment_term_id"
+          options="{'no_open':True,'no_create': True}" />
+          <field name="sale_discount_percent" force_save="1"
+          attrs="{'readonly':[('is_admin','=',False)]}" />
+          <field name="sale_discount" readonly="1"
+          force_save="1" />
+          <field name="sale_discounts" readonly="1" widget="many2many_tags" />
+        </field>
+        <button name="action_cancel" position="attributes">
+          <attribute name="attrs">{'invisible': ['|', ('state',
+          'not in', ['draft', 'sent','sale']),
+          ('is_admin','=',False), ('id', '=', False)]}</attribute>
+          <attribute name="context">{'disable_cancel_warning':
+          True}</attribute>
+        </button>
+	 <xpath expr="//field[@name='order_line']" position="attributes">
+            <attribute name="attrs">{'readonly': ['|', ('state', 'in', ('done','cancel')), ('is_admin', '=', False)]}</attribute>
+        </xpath>
+	 <xpath expr="//button[@name='action_draft']" position="attributes">
+            <attribute name="invisible">1</attribute>
+        </xpath>
+        <xpath expr="//group[@name='order_details']"
+        position="replace">
+          <group class="oe_right" colspan="6" name="sale_total">
+            <h2>
+              <table  style="width: 200%">
+                <tr>
+                  <td />
+                  <td class="oe_right">
+                    <button name="modifico" type="object"
+                    string="Modifico"
+                    class="oe_highlight btn-primary" />
+                  </td>
+                </tr>
+                <tr>
+                  <th>
+                    <label for="amount_total">Total</label>
+                  </th>
+                  <th class="oe_right">
+                    <field name="amount_total"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </th>
+                </tr>
+		<tr attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}" >
+                  <td>
+                    <label for="sale_with_discount">Con
+                    Descuento:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="sale_with_discount"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </td>
+                </tr>
+		<tr>
+                  <td>
+                    <label for="efectivo">Efectivo:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="efectivo"
+                    attrs="{'readonly': [('state', 'in', ['sale', 'done', 'cancel'])]}"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </td>
+                </tr>
+	        <tr>
+                  <td>
+                    <label for="vuelto">Vuelto:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="vuelto"
+                    attrs="{'readonly': [('state', 'in', ['sale', 'done', 'cancel'])]}"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </td>
+                </tr>
+		<tr attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}" >
+                  <td>
+                    <label for="redondeo">Redondeo:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="redondeo" readonly="1"
+                    force_save="1"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </td>
+                </tr>
+		<tr attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}" >
+                  <td>
+                    <label for="total_calculado">Total a
+                    cobrar:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="total_calculado" readonly="1"
+                    force_save="1"
+                    style="text-align:right;padding-right:3px !important;width:20% !important;" />
+                  </td>
+                </tr>
+              </table>
+            </h2>
+          </group>
+        </xpath>
+      </data>
+    </field>
+  </record>
+  <record id="view_sale_order_filter" model="ir.ui.view">
+    <field name="model">sale.order</field>
+    <field name="inherit_id"
+    ref="sale.sale_order_view_search_inherit_quotation" />
+    <field name="arch" type="xml">
+      <filter name="my_quotation" position="after">
+        <filter name="create_date" string="Hoy"
+        domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',(datetime.date.today()+datetime.timedelta(days = 1)).strftime('%Y-%m-%d 03:00:00'))]"
+      </filter>
+    </field>
+  </record>
+  <record id="view_sale_order_filter_sale" model="ir.ui.view">
+    <field name="model">sale.order</field>
+    <field name="inherit_id"
+    ref="sale.sale_order_view_search_inherit_sale" />
+    <field name="arch" type="xml">
+      <filter name="my_sale_orders_filter" position="after">
+        <filter name="create_date" string="Hoy"
+        domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',(datetime.date.today()+datetime.timedelta(days = 1)).strftime('%Y-%m-%d 03:00:00'))]"
+      </filter>
+    </field>
+  </record>
+</odoo>

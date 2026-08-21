@@ -1,0 +1,97 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* l10n_ar_pos
+# 
+# Translators:
+# Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 16.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-08-08 14:27+0000\n"
+"PO-Revision-Date: 2024-08-08 14:25+0000\n"
+"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
+"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Language: es\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: l10n_ar_pos
+#. odoo-javascript
+#: code:addons/l10n_ar_pos/static/src/xml/PartnerDetailsEdit.xml:0
+#, python-format
+msgid "AFIP Responsibility"
+msgstr "Responsabilidad de AFIP"
+
+#. module: l10n_ar_pos
+#: model:ir.model,name:l10n_ar_pos.model_res_partner
+msgid "Contact"
+msgstr "Contacto"
+
+#. module: l10n_ar_pos
+#. odoo-python
+#: code:addons/l10n_ar_pos/models/res_partner.py:0
+#, python-format
+msgid "Deleting this partner is not allowed."
+msgstr ""
+
+#. module: l10n_ar_pos
+#. odoo-javascript
+#: code:addons/l10n_ar_pos/static/src/xml/templates.xml:0
+#, python-format
+msgid "IBB:"
+msgstr ""
+
+#. module: l10n_ar_pos
+#. odoo-javascript
+#: code:addons/l10n_ar_pos/static/src/xml/PartnerDetailsEdit.xml:0
+#, python-format
+msgid "Identification Type"
+msgstr ""
+
+#. module: l10n_ar_pos
+#. odoo-javascript
+#: code:addons/l10n_ar_pos/static/src/xml/templates.xml:0
+#, python-format
+msgid "Inicio actividades:"
+msgstr ""
+
+#. module: l10n_ar_pos
+#: model_terms:ir.ui.view,arch_db:l10n_ar_pos.ticket_validation_screen
+msgid "Invoice not available. You can contact us for more info"
+msgstr ""
+
+#. module: l10n_ar_pos
+#. odoo-python
+#: code:addons/l10n_ar_pos/models/pos_order.py:0
+#, python-format
+msgid "Only can refund one invoice at a time"
+msgstr ""
+
+#. module: l10n_ar_pos
+#: model_terms:ir.ui.view,arch_db:l10n_ar_pos.ticket_validation_screen
+msgid "Please"
+msgstr ""
+
+#. module: l10n_ar_pos
+#: model:ir.model,name:l10n_ar_pos.model_pos_order
+msgid "Point of Sale Orders"
+msgstr "Pedidos de TPV"
+
+#. module: l10n_ar_pos
+#: model:ir.model,name:l10n_ar_pos.model_pos_session
+msgid "Point of Sale Session"
+msgstr "Sesión TPV"
+
+#. module: l10n_ar_pos
+#: model_terms:ir.ui.view,arch_db:l10n_ar_pos.ticket_validation_screen
+msgid "Sign in"
+msgstr ""
+
+#. module: l10n_ar_pos
+#: model_terms:ir.ui.view,arch_db:l10n_ar_pos.ticket_validation_screen
+msgid "in order to save your contact info"
+msgstr ""

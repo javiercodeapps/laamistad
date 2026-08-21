@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="custom_popup_confirmation" model="ir.ui.view">
+        <field name="name">Custom Popoup Confirmation</field>
+        <field name="model">paimon.popup.confirmation</field>
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <form string="Confirmation" version="15.0">
+                <separator string="Confirmation" colspan="6"/>
+                <field name="message" colspan="4" nolabel="1" readonly="1"  widget="html"/>                                                            
+                <field name="text" colspan="4" nolabel="1" readonly="0"/>                                                            
+                <newline/>
+                <separator colspan="6"/>
+                <footer>
+	    	    <button name="confirm" type="object" string="Autorizo" class="oe_highlight btn-primary px-4 py-4"/>
+                    <button special="cancel" string="No" class="btn btn-primary px-4 py-4"/>                    
+                </footer>                                    
+            </form>
+        </field>
+    </record>      
+</odoo>

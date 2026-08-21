@@ -1,0 +1,131 @@
+<odoo>
+
+    <!-- BOTÓN PARA IMPRIMIR LA FACTURA -->
+    <record id="view_order_form_print_invoice_button" model="ir.ui.view">
+        <field name="name">sale.order.print.invoice.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <header position="inside">
+                <button name="action_print_invoice"
+                    type="object"
+                    string="Imprimir Factura"
+                    class="btn btn-primary px-3 py-3"
+                    attrs="{'invisible': [('invoice_status', '!=', 'invoiced')]}"
+                    />
+            </header>
+        </field>
+    </record>
+
+    <record id="view_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+	<field name="priority" eval="100" />
+        <field name="arch" type="xml">
+
+            <xpath expr="//page[@name='order_lines']" position="after">
+                <page string="Detalles QR" name="qr_code_details">
+                <group string="QR Code Details">
+                    <field name="ticket_num"/>
+                    <field name="seller"/>
+                    <field name="scale"/>
+                    <field name="total_items"/>
+                </group>
+                </page>
+            </xpath>
+
+            <xpath expr="//div[@class='oe_title']" position="replace">
+                <field name="name" readonly="1" invisible="1"/>
+            </xpath>
+            <xpath expr="//button[@name='action_confirm']" position="attributes">
+		     <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_quotation_send']" position="attributes">
+		     <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button
+                    name="action_confirm_type"
+                    string="Efectivo"
+                    type="object"
+		    context="{'payment_type': 'EFECTIVO'}"
+                    class="btn btn-primary px-3 py-3"
+	            attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="OTROS"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'OTROS'}"
+	            attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Mercado Pago"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'MP'}"
+	            attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Multiple"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'Multiple'}"
+	            attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Efectivo"
+                    type="object"
+		    context="{'payment_type': 'EFECTIVO'}"
+                    class="btn btn-primary px-3 py-3"
+	            attrs="{'invisible': [('state', 'not in', ['sent','sale'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="OTROS"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'OTROS'}"
+	            attrs="{'invisible': [('state', 'not in', ['sent','sale'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Mercado Pago"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'MP'}"
+	            attrs="{'invisible': [('state', 'not in', ['sent','sale'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Solo Facturar"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'CTACTE Factura'}"
+	            attrs="{'invisible': [('state', 'not in', ['sent'])]}"
+                    />
+                <button
+                    name="action_confirm_type"
+                    string="Cuenta Corriente"
+                    type="object"
+                    class="btn btn-primary px-3 py-3"
+		    context="{'payment_type': 'CTACTE'}"
+                    attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+                <button
+                    name="action_add_products_from_qr"
+                    type="object"
+                    string="Agregar Productos QR"
+                    class="btn btn-primary px-3 py-3"
+	            attrs="{'invisible': [('state', 'not in', ['draft'])]}"
+                    />
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

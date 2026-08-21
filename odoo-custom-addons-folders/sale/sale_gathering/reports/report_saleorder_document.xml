@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template
+        id="report_saleorder_document_gathering"
+        inherit_id="sale.report_saleorder_document"
+        primary="True"
+        priority="99"
+    >
+        <xpath expr="//th[@name='th_priceunit']" position="before">
+            <th class="text-end" t-if="doc.is_gathering and doc.state not in ['draft','sent']">Initial Quantity Gathered</th>
+            <th class="text-end" t-if="doc.is_gathering and doc.state not in ['draft','sent']">Quantity Invoiced</th>
+        </xpath>
+
+        <xpath expr="//thead[@style='display: table-row-group']" position="attributes">
+            <attribute name="style"></attribute>
+        </xpath>
+
+        <xpath expr="//td[@name='td_priceunit']" position="before">
+            <td class="text-end" t-if="doc.is_gathering and doc.state not in ['draft','sent']">
+                <span t-if="line.initial_qty_gathered &gt; 0">
+                    <t t-esc="line.initial_qty_gathered"/>
+                </span>
+            </td>
+            <td class="text-end" t-if="doc.is_gathering and doc.state not in ['draft','sent']">
+                    <t t-esc="line.qty_invoiced"/>
+            </td>
+        </xpath>
+
+        <xpath expr="//td[@name='td_section_subtotal']" position="attributes">
+            <attribute name="t-if">not doc.is_gathering</attribute>
+        </xpath>
+
+        <xpath expr="//t[@t-call='account.document_tax_totals']" position="replace">
+            <t t-call="sale_gathering.sale_gathering_totals"/>
+        </xpath>
+    </template>
+
+    <template id="sale_gathering_totals">
+        <t t-if="doc.is_gathering and doc.state not in ['draft','sent']">
+            <tr class="border-black o_total">
+                <td>
+                    <strong>Gathering Amount With Taxes:</strong>
+                </td>
+                <td class="text-end">
+                    <span t-out="doc.gathering_amount_with_taxes or 0"  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Gathering Balance:</strong>
+                </td>
+                <td class="text-end">
+                    <span t-out="doc.gathering_balance or 0" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                </td>
+            </tr>
+            <tr class="border-black o_total">
+                <td>
+                    <strong>Withdrawn Amount:</strong>
+                </td>
+                <td class="text-end">
+                    <span t-out="doc.withdrawn_amount or 0" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                </td>
+            </tr>
+        </t>
+    </template>
+
+    <template id="report_saleorder_gathering_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t
+                    t-call="sale_gathering.report_saleorder_document_gathering"
+                    t-lang="doc.partner_id.lang"
+                />
+            </t>
+        </t>
+    </template>
+</odoo>

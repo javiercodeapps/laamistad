@@ -1,0 +1,231 @@
+from odoo import models, fields, api
+from datetime import datetime, timedelta
+from odoo.exceptions import UserError
+import openpyxl
+from io import BytesIO
+from base64 import b64decode
+import logging
+_logger = logging.getLogger(__name__)
+
+class CashBoxSale(models.Model):
+    _inherit = ['account.cashbox.session']
+
+    resumen_ids = fields.One2many('account.cashbox.sale.line','cashbox_id',compute='_compute_sale_ids')
+    ventas_ids = fields.One2many('account.cashbox.sale.line','cashbox_id',domain=[('type_pay_id','=','VENTAS'),('type_id','!=','')])
+    ctacte_ids = fields.One2many('account.cashbox.sale.line','cashbox_id',domain=[('type_pay_id','in',['CTACTE','COBROS'])])
+    transf_ids = fields.One2many('account.cashbox.sale.line','cashbox_id',domain=[('type_pay_id','=','TRANSFERENCIAS')])
+    gastos_ids = fields.One2many('account.cashbox.sale.line','cashbox_id',domain=[('type_pay_id','=','GASTOS')])
+
+    def _compute_sale_ids(self,forzar=False):
+        if self.state in ['draf','opened']:
+            payments = self.env['account.payment'].search([
+                           ('journal_id', 'in', self.cashbox_id.journal_ids.ids),
+                           ('create_date', '>', self.opening_date),
+                           ('state', '=', 'posted'),
+                           ('cashbox_session_id', '=', False),
+                           ])
+            for payment in payments:
+                payment.write({"cashbox_session_id": self.id})
+        if self.state in ['draf','opened'] or forzar:
+            cobros = {}
+            ccobros = {}
+            totales = {}
+            cantidad = {}
+            ids = {}
+            cids = {}
+            gtotales = {}
+            gcantidad = {}
+            ttotales = {}
+            tcantidad = {}
+            self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)]).unlink()
+            # Armar resumen de gasto de la caja y detectar pagos de pedidos de otros dias
+            for payids in self.payment_ids:
+                for pay in payids:
+                    if 'OP-X' in '%s' % pay.name:
+                        if pay.journal_id.name not in gtotales:
+                            gtotales[pay.journal_id.name] = {}
+                            gcantidad[pay.journal_id.name] = {}
+                        if pay.partner_id.name not in gtotales[pay.journal_id.name]:
+                            gtotales[pay.journal_id.name][pay.partner_id.name] = 0
+                            gcantidad[pay.journal_id.name][pay.partner_id.name] = 0
+                        gtotales[pay.journal_id.name][pay.partner_id.name] += pay.amount_signed
+                        gcantidad[pay.journal_id.name][pay.partner_id.name] += 1
+                    if 'Central' in '%s' % pay.journal_id.name or 'Banco' in '%s' % pay.journal_id.name:
+                        if pay.journal_id.name not in gtotales:
+                            ttotales[pay.journal_id.name] = 0
+                            tcantidad[pay.journal_id.name] = 0
+                        ttotales[pay.journal_id.name] += pay.amount_signed
+                        tcantidad[pay.journal_id.name] += 1
+                    if 'RE' in '%s' % pay.name:
+                        # Busco si el pago corresponde a un pedido de fecha anterior a hoy
+                        ctacte=False
+                        for line in pay.reconciled_invoice_ids:
+                            for so in line.line_ids.sale_line_ids:
+                                if so.create_date < self.opening_date:
+                                    ctacte=True
+                        if ctacte:
+                            if pay.journal_id.name not in totales:
+                                totales[pay.journal_id.name]=0
+                                cantidad[pay.journal_id.name]=0
+                                ids[pay.journal_id.name]=[]
+                            totales[pay.journal_id.name]+=pay.amount_signed
+                            cantidad[pay.journal_id.name]+=1
+                            ids[pay.journal_id.name].append(so.order_id.id)
+                        else:
+                            if pay.journal_id.name not in cobros:
+                                cobros[pay.journal_id.name]=0
+                                ccobros[pay.journal_id.name]=0
+                                cids[pay.journal_id.name]=[]
+                            cobros[pay.journal_id.name]+=pay.amount_signed
+                            ccobros[pay.journal_id.name]+=1
+                            cids[pay.journal_id.name].append(so.order_id.id)
+
+
+            for t in totales:
+                self.env['account.cashbox.sale.line'].create({'type_id':t,
+                                                              'count':cantidad[t],
+                                                              'amount':totales[t],
+                                                              'cashbox_id':self.id,
+                                                              'type_pay_id':'CTACTE',
+                                                              'ventas_ids':[(6,0,ids[t])]})
+            for t in cobros:
+                self.env['account.cashbox.sale.line'].create({'type_id':t,
+                                                              'count':ccobros[t],
+                                                              'amount':cobros[t],
+                                                              'cashbox_id':self.id,
+                                                              'type_pay_id':'COBROS',
+                                                              'ventas_ids':[(6,0,cids[t])]})
+            for j in gtotales:
+                for t in gtotales[j]:
+                    self.env['account.cashbox.sale.line'].create({'type_id':'%s %s' % (j,t),'count':gcantidad[j][t],'amount':gtotales[j][t],'cashbox_id':self.id,'type_pay_id':'GASTOS'})
+            for t in ttotales:
+                self.env['account.cashbox.sale.line'].create({'type_id':t,'count':tcantidad[t],'amount':ttotales[t],'cashbox_id':self.id,'type_pay_id':'TRANSFERENCIAS'})
+            totales = {}
+            cantidad = {}
+            # Busco las ventas
+            if self.closing_date:
+                ventas=self.env['sale.order'].search([('state','!=','cancel'),('date_order','>=',self.opening_date),('date_order','<=',self.closing_date)])
+            else:
+                ventas=self.env['sale.order'].search([('state','!=','cancel'),('date_order','>=',self.opening_date)])
+            if ventas:
+                ids={}
+                for v in ventas:
+                    # Unificar Tipo MP como uno solo
+                    if v.create_date < self.opening_date:
+                        continue
+                    if v.type_id.name not in totales:
+                        totales[v.type_id.name]=0
+                        cantidad[v.type_id.name]=0
+                        ids[v.type_id.name]=[]
+                    totales[v.type_id.name]+=v.amount_total
+                    cantidad[v.type_id.name]+=1
+                    ids[v.type_id.name].append(v.id)
+            v = []
+            for t in totales:
+                self.env['account.cashbox.sale.line'].create({'type_id':t,
+                                                              'count':cantidad[t],
+                                                              'amount':totales[t],
+                                                              'cashbox_id':self.id,
+                                                              'type_pay_id':'VENTAS',
+                                                              'ventas_ids': [(6, 0, ids[t])] })
+
+            totales = {}
+            cantidad = {}
+            # Busco las ventas
+            if self.closing_date:
+                ventas=self.env['sale.order'].search([('state','!=','cancel'),('create_date','>=',self.opening_date),('effective_date','=',None),('create_date','<=',self.closing_date)])
+            else:
+                ventas=self.env['sale.order'].search([('state','!=','cancel'),('create_date','>=',self.opening_date),('effective_date','=',None)])
+            if ventas:
+                ids= {}
+                for v in ventas:
+                    # Unificar Tipo MP como uno solo
+                    if v.type_id.name not in totales:
+                        totales[v.type_id.name]=0
+                        cantidad[v.type_id.name]=0
+                        ids[v.type_id.name] = []
+                    totales[v.type_id.name]+=v.amount_total
+                    cantidad[v.type_id.name]+=1
+                    ids[v.type_id.name].append(v.id)
+            v = []
+           #for t in totales:
+           #    self.env['account.cashbox.sale.line'].create({'type_id':t,
+           #                                                  'count':cantidad[t],
+           #                                                  'amount':totales[t],
+           #                                                  'cashbox_id':self.id,
+           #                                                  'type_pay_id':'CTACTE',
+           #                                                  'ventas_ids': [(6, 0, ids[t])] })
+
+
+        self.resumen_ids = self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)])
+
+    def autorizo(self,clave=None):
+        _logger.info('CLAVE %s' % clave)
+
+        if clave == self.env['ir.config_parameter'].sudo().get_param('autorizacioncaja'):
+            self.with_context(autorizo_cierre=True).write({'state': 'closed'})
+        else:
+            raise UserError('La clave ingresada es incorrecta')
+
+    def action_account_cashbox_session_close_auth(self):
+        popup = self.env['paimon.popup.confirmation']
+        action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
+        return action
+
+    @api.constrains('state')
+    def _create_recibos_central(self):
+        if self.state == 'closed':
+            self.recibos_central()
+
+    def recibos_central(self):
+        for r in self:
+            for pay in r.payment_ids:
+                if 'Central' in '%s' % pay.journal_id.name or 'Banco' in '%s' % pay.journal_id.name:
+                    # Armo un recibo en CENTRAL
+                    if 'Efectivo' in pay.journal_id.name:
+                        pay_journal = self.env['account.journal'].sudo().search([('name','=','Efectivo'),('company_id','=',5)])
+                    if 'PVS' in pay.journal_id.name:
+                        pay_journal = self.env['account.journal'].sudo().search([('name','=','PVS'),('company_id','=',5)])
+                    if 'Banco' in pay.journal_id.name:
+                        pay_journal = self.env['account.journal'].sudo().search([('name','=','Banco'),('company_id','=',5)])
+                    _logger.info('JOURNAL %s' % pay_journal)
+                    
+                    recipe_book = self.env['account.payment.receiptbook'].sudo().search([('name','like','Recibos de Cliente'),('company_id','=',5)])[0]
+                    partner_type = 'customer'
+                    payment_group = pay.env['account.payment.group'].sudo().create({
+                                            'company_id': 5,
+                                            'partner_type': partner_type,
+                                            'payment_date': pay.date,
+                                            'notes': pay.name,
+                                            'receiptbook_id':recipe_book.id,
+                                            'partner_id': pay.company_id.partner_id.id, })
+
+                    payment_type = 'inbound'
+                    payment_methods = pay_journal.inbound_payment_method_line_ids.payment_method_id
+                    payment_method = payment_methods.filtered(lambda x: x.code == 'manual')
+                    payment_group.partner_type = partner_type
+                    payment_group.sudo().payment_ids.create({
+                                                      'payment_group_id': payment_group.id,
+                                                      'payment_type': payment_type,
+                                                      'partner_type': partner_type,
+                                                      'company_id': 5,
+                                                      'ref': pay.name,
+                                                      'partner_id': pay.partner_id.id,
+                                                      'amount': abs(pay.amount),
+                                                      'journal_id': pay_journal.id,
+                                                      'payment_method_id': payment_method.id,
+                                                      'date': pay.date,
+                                                      })
+                    _logger.info('PAYMENT %s' % payment_group)
+                    payment_id = payment_group.post()
+
+class CashBoxSaleLine(models.Model):
+    _name='account.cashbox.sale.line'
+    type_pay_id = fields.Char(string='Tipo')
+    type_id = fields.Char(string='Detalle')
+    cashbox_id = fields.Integer(string='CashBox')
+    count = fields.Integer(string='Cantidad')
+    amount = fields.Float(string='Total')
+    ventas_ids = fields.One2many('sale.order','cashbox_id','Ordenes de venta')
+
+
