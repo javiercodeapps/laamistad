@@ -17,7 +17,6 @@ git+https://github.com/pysimplesoap/pysimplesoap@e1453f385cee119bf8cfb53c763ef21
 httplib2==0.20.4
 httplib2>=0.7
 httpx
-M2Crypto
 mock
 mpld3==0.5.9
 odoo_test_helper
@@ -40,3 +39,6 @@ pyzbar
 requests
 responses
 xlrd
+M2Crypto==0.44.0
+PyKCS11==1.5.17
+
