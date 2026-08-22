@@ -13,9 +13,6 @@ certvalidator==0.11.1
 cffi==1.17.1
 chardet==4.0.0
 charset-normalizer==3.4.1
-click==8.3.1
-click-odoo==1.8.0
-contourpy==1.3.1
 cryptography==3.4.8
 cssselect==1.3.0
 currency2text @ git+https://github.com/aeroo/currency2text.git@e666e17eb54f5a49f5cfb3825d8513a4d1510249
@@ -40,18 +37,16 @@ httplib2==0.20.4
 idna==2.10
 isodate==0.7.2
 Jinja2==2.11.3
-kiwisolver==1.4.8
 libsass==0.20.1
 lxml==4.6.5
 M2Crypto==0.44.0
 MarkupSafe==1.1.1
-matplotlib==3.10.1
-mercadopago==3.5.0
+mercadopago
 mock==5.2.0
 mpld3==0.5.9
 num2words==0.5.9
-numpy==2.2.4
-numpy-financial==1.0.0
+numpy
+numpy-financial
 ofxparse==0.21
 ofxtools==0.9.5
 openpyxl==3.1.5
@@ -66,7 +61,6 @@ Pillow==9.0.1
 plotly==5.13.1
 polib==1.1.0
 psutil==5.8.0
-psycopg2==2.9.2
 py3o.formats==0.3
 py3o.template==0.10.0
 PyAfipWs @ git+https://github.com/reingart/pyafipws@545ddcee9d1c59772ba8d418c28d8a6407a686e1
@@ -92,7 +86,7 @@ PyYAML==6.0.2
 pyzbar==0.1.9
 qrcode==6.1
 reportlab==3.5.59
-requests==2.34.2
+requests
 requests-file==2.1.0
 requests-toolbelt==1.0.0
 responses==0.25.7
