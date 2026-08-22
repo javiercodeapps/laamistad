@@ -1,0 +1,47 @@
+beautifulsoup4
+bokeh==3.1.1
+chardet
+cryptography
+# dbf>=0.88.019
+email_validator
+endesive
+# fpdf>=1.7.2
+# generated from manifests external_dependencies
+genshi==0.7.7
+git+https://github.com/adhoc-dev/aeroolib@master-fix-ods
+# git+https://github.com/aeroo/aeroolib.git
+git+https://github.com/aeroo/currency2text.git
+git+https://github.com/filoquin/pyafipws.git@py3k
+git+https://github.com/ingadhoc/pyafipws@py3k
+git+https://github.com/OCA/openupgradelib/@master
+git+https://github.com/pysimplesoap/pysimplesoap@a330d9c4af1b007fe1436f979ff0b9f66613136e
+git+https://github.com/pysimplesoap/pysimplesoap@e1453f385cee119bf8cfb53c763ef212652359f5
+# git+https://github.com/reingart/pyafipws@py3k
+httplib2==0.20.4
+httplib2>=0.7
+httpx
+M2Crypto
+mock
+mpld3==0.5.9
+odoo_test_helper
+ofxparse
+ofxtools
+openpyxl
+openupgradelib
+pdf2image
+# Pillow>=2.0.0
+plotly==5.13.1
+py3o.formats
+py3o.template
+pyjwt
+pyOpenSSL
+pyrfc6266
+pysaml2
+python-jose
+python-ldap
+pyzbar
+requests
+responses
+# use this genshi version to fix error when, for eg, you send arguments like "date=True" check this https://genshi.edgewall.org/ticket/600
+# waiting for PR https://github.com/aeroo/aeroolib/pull/12
+xlrd
