@@ -9,7 +9,7 @@ aeroolib @ git+https://github.com/adhoc-dev/aeroolib@eb3f232f250ce6da978c41e47fd
 currency2text @ git+https://github.com/aeroo/currency2text.git@e666e17eb54f5a49f5cfb3825d8513a4d1510249
 PyAfipWs @ git+https://github.com/reingart/pyafipws@545ddcee9d1c59772ba8d418c28d8a6407a686e1
 openupgradelib @ git+https://github.com/OCA/openupgradelib/@19ba25c49f15225a428d872d2e3710278928c072
-git+https://github.com/pysimplesoap/pysimplesoap@e1453f385cee119bf8cfb53c763ef212652359f5
+#git+https://github.com/pysimplesoap/pysimplesoap@e1453f385cee119bf8cfb53c763ef212652359f5
 httplib2==0.20.4
 httpx
 mock==5.2.0
