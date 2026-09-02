@@ -6,7 +6,7 @@
     "license": "LGPL-3",
     "category": "Sales",
     "version": "15.0.1.0.0",
-    "depends": ["sale"],
+    "depends": ["sale","scan_qr"],
     "data": [
         "security/security.xml",
         "views/sale_order_pos.xml",
