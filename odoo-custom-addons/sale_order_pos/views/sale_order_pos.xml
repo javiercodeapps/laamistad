@@ -163,6 +163,7 @@
       <filter name="my_quotation" position="after">
         <filter name="create_date" string="Hoy"
         domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',(datetime.date.today()+datetime.timedelta(days = 1)).strftime('%Y-%m-%d 03:00:00'))]"
+	/>
       </filter>
     </field>
   </record>
@@ -174,6 +175,7 @@
       <filter name="my_sale_orders_filter" position="after">
         <filter name="create_date" string="Hoy"
         domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00')),('create_date', '&lt;=',(datetime.date.today()+datetime.timedelta(days = 1)).strftime('%Y-%m-%d 03:00:00'))]"
+	/>
       </filter>
     </field>
   </record>
