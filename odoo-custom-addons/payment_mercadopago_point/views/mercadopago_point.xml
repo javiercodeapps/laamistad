@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- View fresherp_ventas.mercadopago View List -->
+    <record id="view_point_ventas_mercadopago_list" model="ir.ui.view">
+        <field name="name">view.payment_mercadopago_point.mercadopago.list</field>
+        <field name="model">payment_mercadopago_point.mercadopago</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name" />
+                <field name="payment_provider_id" />
+                <field name="terminal_id" />
+                <field name="platform_id" />
+                <field name="company_id" />
+            </tree>
+        </field>
+    </record>
+    <!-- View fresherp_ventas.mercadopago form -->
+    <record id="view_point_ventas_mercadopago_form" model="ir.ui.view">
+        <field name="name">view.payment_mercadopago_point.mercadopago.form</field>
+        <field name="model">payment_mercadopago_point.mercadopago</field>
+        <field name="arch" type="xml">
+            <form string="Payment Mercadopago Point">
+                <header>
+                    <button name="get_terminals" string="Get Terminals" type="object" class="oe_highlight" />
+                    <button name="set_terminal_pdv" string="Set Point PDV" type="object" class="oe_highlight" />
+                    <button name="set_terminal_manual" string="Set Point Manual" type="object" class="oe_highlight" />
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" />
+                        <h1>
+                            <field name="name" placeholder="Name..." />
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="payment_provider_id" />
+                        <field name="terminal_id" />
+                        <field name="platform_id" />
+                        <field name="company_id" />
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" />
+                    <field name="message_ids" />
+                </div>
+            </form>
+        </field>
+    </record>
+    <!-- Action fresherp_ventas.mercadopago -->
+    <record id="action_payment_mercadopago_point_mercadopago" model="ir.actions.act_window">
+        <field name="name">Payment Mercadopago Point</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">payment_mercadopago_point.mercadopago</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">There is no examples click here to add new Payment Mercadopago Point.</p>
+        </field>
+    </record>
+
+    <record id="menu_payment_mercadopago_point_mercadopago" model="ir.ui.menu">
+        <field name="name">Payment Mercadopago Point</field>
+        <field name="action" ref="action_payment_mercadopago_point_mercadopago" />
+        <field name="sequence">0</field>
+    </record>
+
+    <menuitem id="menu_payment_mercadopago_point_mercadopago" name="Payment Mercadopago Point" parent="sale.menu_sales_config" />
+</odoo>

@@ -14,7 +14,8 @@ class SaleOrderQR(models.Model):
     seller = fields.Char(string="Seller", size=1)
     scale = fields.Char(string="Scale Number", size=3)
     total_items = fields.Integer(string="Total Items", default=0)
-    payment_provider = fields.Many2one('payment.transaction')
+    payment_provider = fields.Many2one('payment.transaction',copy=False)
+    mp_link = fields.Char(string="MP Link", copy=False)
 
 
     ## Parses QR data and creates a Sale Order
@@ -226,6 +227,20 @@ class SaleOrderQR(models.Model):
                     payment_provider = self.pay_mp_qr(self.efectivo)
                     self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
+            elif payment_type in ['MP Link']:
+                _logger.info('Procesando pago')
+                _logger.info('Procesando pago %s' % payment_type)
+                _logger.info('Procesando pago %s' % self)
+                provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([('company_id.id','=', self.company_id.id)], limit=1)
+                _logger.info('Procesando pago %s' % provider)
+                if not self.payment_provider:
+                    self.payment_provider = provider.id
+                    _logger.info("Creando Link de pago:" )
+                    mp_link = provider.create_order_link(self)
+                    _logger.info("Link de pago: %s" % mp_link)
+                    self.mp_link = mp_link
+                    self.message_post(body="Link de pago: %s" % mp_link)
+                    self.env.cr.commit()
             elif payment_type != 'CTACTE Factura':
                 for moves in self.invoice_ids:
                     if self.type_id.name != 'Efectivo' and self.efectivo > 0:
@@ -240,6 +255,26 @@ class SaleOrderQR(models.Model):
                         pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,moves.amount_total)
                         self.reconciliar_venta(moves,[pay1])
             return 0
+
+    def pay_mp_link(self,data):
+        _logger.info('MP LINK DATA %s' % data)
+        payment_provider = self.env["payment_mercadopago_point.mercadopago.history"].sudo().search([('preference','ilike', data['preference_id'])], limit=1)
+        if payment_provider:
+            so = payment_provider.sale_id
+            provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([('company_id.id','=', so.company_id.id)], limit=1)
+            status =  provider.get_payment_status(so,data['payment_id'])
+            _logger.info('Status de SO: %s' % so.id)
+            _logger.info('Status de SO: %s' % so.state)
+            _logger.info('Status de SO: %s' % so.invoice_ids)
+            _logger.info('Status de pago: %s' % status)
+            if status == 'approved':
+                #self.env.cr.commit()
+                for moves in so.invoice_ids:
+                    _logger.info('TEST MOVES 1 %s' % moves)
+                    pay1=self.with_company(so.company_id).pay_multiple(moves,so.type_id.payment_journal_id,moves.amount_total)
+                    _logger.info('TEST pay 1 %s' % pay1)
+                    self.reconciliar_venta(moves,[pay1])
+        return 0
     def pay_mp_qr_wizard(self):
         _logger.info('Abriendo QR 1 %s %s' % (self.payment_status,self.payment_provider) )
         if self.payment_provider and self.payment_provider.state in ['draft','pending']:
@@ -261,6 +296,7 @@ class SaleOrderQR(models.Model):
     def pay_multiple(self,moves,journal_efectivo,efectivo):
         for rec in moves:
             pay_journal = journal_efectivo
+            dest_account = self.env['account.account'].search([('code','=','1.1.3.01.010'),('company_id','=',rec.company_id.id)],limit=1)
             if pay_journal and rec.state == 'posted' and rec.payment_state in ['not_paid', 'partial']:
                 partner_type = 'customer'
                 receiptbook = self.env[ 'account.payment.receiptbook'].search([
@@ -284,7 +320,7 @@ class SaleOrderQR(models.Model):
                         'Pay now journal must have manual method!'))
 
                 caja = self.env['account.cashbox.session'].search([('state','=','opened'),('company_id.id','=',rec.company_id.id)])
-                payment_group.payment_ids.create({
+                payment_group.with_company(rec.company_id).payment_ids.create({
                     'payment_group_id': payment_group.id,
                     'payment_type': payment_type,
                     'partner_type': partner_type,
@@ -296,6 +332,7 @@ class SaleOrderQR(models.Model):
                     'payment_method_id': payment_method.id,
                     'date': payment_group.payment_date,
                     'cashbox_session_id': caja.id,
+                    'destination_account_id': dest_account.id,
                 })
                 _logger.info('FAC %s' % payment_group.to_pay_move_line_ids)
                 payment_group.remove_all()
@@ -331,9 +368,13 @@ class SaleOrderQR(models.Model):
 # Cambia el diario de facturacion a electronica
 # Vuelve a confirmar
     def refacturar_pedido(self):
+        # Diario de factura electronica
+        journal = self.env['account.journal'].search([('name','ilike','Ventas electr')])
         # Busco facturas
         aml_obj = self.env['account.move.line']
         for invoice in self.invoice_ids:
+            if invioice.journal_id == journal.id:
+                return UserError('La factura ya esta facturada correctamente')
             if invoice.state=='posted':
                 aml_obj = self.env['account.move.line']
                 for payment in invoice.payment_group_ids:
@@ -344,8 +385,6 @@ class SaleOrderQR(models.Model):
                 invoice.button_draft()
                 invoice.button_cancel()
         
-        # Diario de factura electronica
-        journal = self.env['account.journal'].search([('name','ilike','Ventas electr')])
         #journal = self.type_id.journal_id
         self._create_invoices()
         for invoice in self.invoice_ids:
