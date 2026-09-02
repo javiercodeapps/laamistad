@@ -1,22 +1,5 @@
 <odoo>
 
-    <!-- BOTÓN PARA IMPRIMIR LA FACTURA -->
-    <record id="view_order_form_print_invoice_button" model="ir.ui.view">
-        <field name="name">sale.order.print.invoice.button</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
-	    <field name="invoice_status" invisible="1"/>
-            <header position="inside">
-                <button name="action_print_invoice"
-                    type="object"
-                    string="Imprimir Factura"
-                    class="btn btn-primary px-3 py-3"
-                    attrs="{'invisible': [('invoice_status', '!=', 'invoiced')]}"
-                    />
-            </header>
-        </field>
-    </record>
 
     <record id="view_order_form_inherit" model="ir.ui.view">
         <field name="name">sale.order.form.inherit</field>
@@ -127,6 +110,24 @@
                     />
             </xpath>
 
+        </field>
+    </record>
+    <!-- BOTÓN PARA IMPRIMIR LA FACTURA -->
+    <record id="view_order_form_print_invoice_button" model="ir.ui.view">
+        <field name="name">sale.order.print.invoice.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+	    <field name="invoice_status" invisible="1"/>
+	    <field name="payment_status" invisible="1"/>
+            <header position="inside">
+                <button name="action_print_invoice"
+                    type="object"
+                    string="Imprimir Factura"
+                    class="btn btn-primary px-3 py-3"
+                    attrs="{'invisible': [('invoice_status', '!=', 'invoiced')]}"
+                    />
+            </header>
         </field>
     </record>
 </odoo>
