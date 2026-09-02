@@ -138,6 +138,16 @@
                     style="text-align:right;padding-right:3px !important;width:20% !important;" />
                   </td>
                 </tr>
+		<tr attrs="{'invisible': [('mp_link', '==', '')]}" >
+                  <td>
+                    <label for="total_calculado">Link de MP:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="mp_link" readonly="1" widget="CopyClipboardChar"
+                    force_save="1"
+                     />
+                  </td>
+                </tr>
               </table>
             </h2>
           </group>
