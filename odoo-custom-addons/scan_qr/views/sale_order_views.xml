@@ -6,6 +6,7 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+	    <field name="invoice_status" invisible="1"/>
             <header position="inside">
                 <button name="action_print_invoice"
                     type="object"
