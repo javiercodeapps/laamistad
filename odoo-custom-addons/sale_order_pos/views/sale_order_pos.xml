@@ -140,7 +140,7 @@
                 </tr>
 		<tr attrs="{'invisible': [('mp_link', '==', '')]}" >
                   <td>
-                    <label for="total_calculado">Link de MP:</label>
+                    <label for="mp_link">Link de MP:</label>
                   </td>
                   <td class="oe_right">
                     <field name="mp_link" readonly="1" widget="CopyClipboardChar"
