@@ -15,6 +15,7 @@
                     <field name="seller"/>
                     <field name="scale"/>
                     <field name="total_items"/>
+                    <field name="caja_id"/>
                 </group>
                 </page>
             </xpath>
