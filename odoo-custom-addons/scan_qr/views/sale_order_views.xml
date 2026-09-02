@@ -118,9 +118,9 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <header position="inside">
 	    <field name="invoice_status" invisible="1"/>
 	    <field name="payment_status" invisible="1"/>
-            <header position="inside">
                 <button name="action_print_invoice"
                     type="object"
                     string="Imprimir Factura"
