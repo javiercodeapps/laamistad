@@ -167,7 +167,7 @@ class PaymentMercadopagoPoint(models.Model):
         return True
 
 
-def calcular_fecha_expiracion(creacion_dt=None, hora_limite=21, horas_duracion=3):
+def calcular_fecha_expiracion(creacion_dt=None, hora_limite=23, horas_duracion=3):
     """
     Calcula la fecha de expiración para un link de pago.
     - Si creacion_dt es None, usa la hora actual.
