@@ -197,7 +197,7 @@ class SaleOrderQR(models.Model):
         _logger.info('%s %s %s %s' % (payment_type,efectivo,context.get('payment_type'),sale_order_type ) )
         self.type_id=sale_order_type.id
         self.env.cr.commit()
-        caja = self.env['account.cashbox.session'].search([('state','=','opened'),('company_id.id','=',rec.company_id.id)])
+        caja = self.env['account.cashbox.session'].search([('state','=','opened'),('company_id.id','=',self.company_id.id)])
         if payment_type == 'CTACTE':
             tag_id = self.env["crm.tag"].search([('name','=','CTACTE')])
             self.tag_ids = tag_id.ids 
