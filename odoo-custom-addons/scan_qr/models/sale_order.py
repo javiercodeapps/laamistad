@@ -379,7 +379,7 @@ class SaleOrderQR(models.Model):
         # Busco facturas
         aml_obj = self.env['account.move.line']
         for invoice in self.invoice_ids:
-            if invioice.journal_id == journal.id:
+            if invoice.journal_id == journal.id:
                 return UserError('La factura ya esta facturada correctamente')
             if invoice.state=='posted':
                 aml_obj = self.env['account.move.line']
