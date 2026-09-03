@@ -175,7 +175,7 @@ def calcular_fecha_expiracion(creacion_dt=None, hora_limite=21, horas_duracion=3
     - Retorna un string ISO 8601 con zona horaria (offset) para Mercado Pago.
     """
     # 1. Obtener la fecha/hora actual con zona horaria (ej. 'America/Asuncion' o la de la empresa)
-    tz = pytz.timezone('America/Argentina/Buenos Aires')  # Ajusta según tu zona horaria
+    tz = pytz.timezone('America/Argentina/Buenos_Aires')  # Ajusta según tu zona horaria
     if creacion_dt is None:
         ahora = datetime.now(tz)
     else:
