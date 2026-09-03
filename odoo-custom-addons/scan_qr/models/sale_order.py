@@ -17,6 +17,7 @@ class SaleOrderQR(models.Model):
     payment_provider = fields.Many2one('payment.transaction',copy=False)
     mp_link = fields.Char(string="MP Link", copy=False)
     caja_id = fields.Many2one('account.cashbox.session', string="Sesión de Caja")
+    is_admin = fields.Boolean(default=False, store=True,tracking=True)
 
 
     ## Parses QR data and creates a Sale Order
