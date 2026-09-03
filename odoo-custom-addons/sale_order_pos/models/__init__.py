@@ -1,3 +1,2 @@
 from . import sale_order
-from . import popup_confirmation
-
+#from . import popup_confirmation
