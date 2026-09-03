@@ -11,6 +11,7 @@
             <xpath expr="//page[@name='order_lines']" position="after">
                 <page string="Detalles QR" name="qr_code_details">
                 <group string="QR Code Details">
+                    <field name="is_admin" invisible="1"/>
                     <field name="ticket_num"/>
                     <field name="seller"/>
                     <field name="scale"/>
