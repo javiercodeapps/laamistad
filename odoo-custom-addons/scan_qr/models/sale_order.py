@@ -310,13 +310,13 @@ class SaleOrderQR(models.Model):
                                                 ('company_id', '=', rec.company_id.id),
                                       ], limit=1)
                 payable_lines = rec.line_ids.filtered(
-                    lambda l: l.account_internal_type == 'receivable' and l.amount_residual > 0
+                    lambda l: l.account_id.account_type == 'receivable' and l.amount_residual > 0
                 )
                 payment_group = rec.env['account.payment.group'].create({
                             'partner_type': partner_type,
                             'partner_id': rec.partner_id.id,
                             'receiptbook_id': receiptbook.id,
-                            'to_pay_move_line_ids':[],
+                            'to_pay_move_line_ids':[(6, 0, payable_lines.ids)],
                         })
 
                 payment_methods = pay_journal.inbound_payment_method_line_ids.payment_method_id
