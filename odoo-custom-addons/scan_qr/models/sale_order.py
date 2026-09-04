@@ -316,7 +316,7 @@ class SaleOrderQR(models.Model):
                             'partner_type': partner_type,
                             'partner_id': rec.partner_id.id,
                             'receiptbook_id': receiptbook.id,
-                            'to_pay_move_line_ids':[(6, 0, payable_lines.ids)],
+                            'to_pay_move_line_ids':[],
                         })
 
                 payment_methods = pay_journal.inbound_payment_method_line_ids.payment_method_id
