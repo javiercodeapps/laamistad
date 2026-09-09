@@ -114,7 +114,7 @@ class PaymentTransaction(models.Model):
             self._set_pending()
         elif status == "expired" or status_detail == "expired":
             self._set_canceled("The order is expired")
-        elif status == "paid":
+        elif status == "paid" or status_detail == 'accredited'::
             total_paid = resp.get("total_amount")
             if total_paid:
                 self.amount = float(total_paid)
