@@ -399,7 +399,7 @@ class SaleOrderQR(models.Model):
         invoice = self.invoice_ids.filtered(lambda inv: inv.move_type == 'out_invoice' and inv.state != 'cancel')
         if not invoice and self.tag_ids and any(tag.name == 'CTACTE' for tag in self.tag_ids):
             #return self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b").report_action(self)
-            report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b")
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket")
             result = report_invoice.report_action(self)
             if isinstance(result, dict):
                 result['close_on_report_done'] = True
@@ -411,7 +411,7 @@ class SaleOrderQR(models.Model):
 
         if invoice.journal_id.l10n_ar_afip_pos_system == 'II_IM':
             #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket_b").report_action(invoice)
-            report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket_b")
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
         else:
             #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket").report_action(invoice)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
