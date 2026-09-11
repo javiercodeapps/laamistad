@@ -9,7 +9,7 @@ class ProductTemplate(models.Model):
     _inherit = "product.template"
 
     def pricelist_itegra(self):
-        fp = open('/opt/odoo16/odoo-custom-addons/product_itegra/static/CODIGOS_PLU_ODOO.TXT','w')
+        fp = open('/mnt/extra-addons/laamistad/odoo-custom-addons/product_itegra/static/CODIGOS_PLU_ODOO.TXT','w')
         for rec in self.env['product.template'].search([]):
             try:
                 if rec.default_code and rec.barcode:
