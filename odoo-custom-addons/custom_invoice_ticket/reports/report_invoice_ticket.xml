@@ -7,7 +7,7 @@
                 <meta charset="UTF-8" />
             </head>
             <t t-foreach="docs" t-as="o">
-                <div class="page" style="font-size: 13px; font-family: 'Lato';">
+                <div class="page" style="font-size: 13px; font-family: 'Lato', monospace;">
 			                <!-- HEADER PARA PREIMPRESO -->
                 <div name="company_address">
 
