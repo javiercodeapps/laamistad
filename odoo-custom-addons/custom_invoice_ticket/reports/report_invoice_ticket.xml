@@ -7,7 +7,7 @@
                 <meta charset="UTF-8" />
             </head>
             <t t-foreach="docs" t-as="o">
-                <div class="page" style="font-size: 13px; font-family: 'Inconsolata', monospace;">
+                <div class="page" style="font-size: 13px; font-family: 'Lato';">
 			                <!-- HEADER PARA PREIMPRESO -->
                 <div name="company_address">
 
@@ -156,7 +156,7 @@
 
                     <!-- AFIP QR -->
                     <div t-if="o.afip_qr_code" class="mt-3 text-center">
-                        <img t-att-src="'/report/barcode/?barcode_type=QR&amp;value=%s&amp;width=300&amp;height=300' % o.afip_qr_code" alt="qr" style="height:100px"/>
+                        <img t-att-src="o._get_afip_qr_image_data_uri()" alt="qr" style="height:100px"/>
                         <br />
                     <span>
                         CAE:
