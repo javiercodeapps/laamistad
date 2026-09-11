@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_invoice_ticket" model="ir.actions.report">
+        <field name="name">Invoice Ticket (80mm)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_invoice_ticket.report_invoice_ticket</field>
+        <field name="report_file">custom_invoice_ticket.report_invoice_ticket</field>
+        <field name="print_report_name">'Ticket-%s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="account.model_account_move" />
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="custom_invoice_ticket.paperformat_ticket_80mm" />
+    </record>
+    <record id="action_report_invoice_ticket_b" model="ir.actions.report">
+        <field name="name">Invoice Ticket B (80mm)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_invoice_ticket.report_invoice_ticket_b</field>
+        <field name="report_file">custom_invoice_ticket.report_invoice_ticket_b</field>
+        <field name="print_report_name">'Ticket-B-%s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="account.model_account_move" />
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="custom_invoice_ticket.paperformat_ticket_80mm" />
+    </record>
+
+    <record id="action_report_sale_order_ticket_b" model="ir.actions.report">
+        <field name="name">Presupuesto Ticket B (80mm)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">custom_invoice_ticket.report_sale_order_ticket_b</field>
+        <field name="report_file">custom_invoice_ticket.report_sale_order_ticket_b</field>
+        <field name="print_report_name">'Presupuesto-%s' % (object.name or '')</field>
+        <field name="binding_model_id" ref="sale.model_sale_order" />
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="custom_invoice_ticket.paperformat_ticket_80mm" />
+    </record>
+</odoo>

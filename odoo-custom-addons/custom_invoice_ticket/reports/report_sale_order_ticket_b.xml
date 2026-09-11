@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_sale_order_ticket_b">
+        <t t-call="web.html_container">
+            <head>
+                <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+                <meta charset="UTF-8" />
+            </head>
+            <t t-foreach="docs" t-as="o">
+                <div class="page" style="font-size: 13px; font-family: 'Inconsolata', monospace;">
+                    <!-- HEADER PARA PRESUPUESTO -->
+                    <div name="company_address">
+
+                        <center>
+                            <img t-if="o.company_id.logo" t-att-src="image_data_uri(o.company_id.logo)" style="max-height: 80px; max-width: 100%;" alt="Logo" />
+                            
+                            <h2>
+                                 Presupuesto Clientes X</h2>
+                                 No Valido como Factura
+                        </center>
+                        <t t-esc="o.company_id.partner_id.name"/>
+
+                        <div t-if="o.name">
+                            <strong>Presupuesto Nro:</strong> <t t-esc="o.name"/>
+                        </div>
+                        <div t-if="o.date_order">
+                            <strong>Fecha:</strong> <span t-field="o.date_order"/>
+                        </div>
+                    </div>
+                    <!-- Customer Info -->
+                    <div class="mt-2 text-left">
+                        <strong>Cliente:</strong>
+                        <br />
+                        <span t-field="o.partner_id.name" />
+                        <br />
+                        <t t-if="o.partner_id.vat">
+                            <span t-field="o.partner_id.l10n_latam_identification_type_id.name" />
+                            :
+                            <span t-field="o.partner_id.vat" />
+                            <br />
+                        </t>
+                        <span t-if="o.partner_id.street" t-field="o.partner_id.street" />
+                        <span t-if="o.partner_id.city" t-field="o.partner_id.city" />
+                    </div>
+                    <!-- Order Lines -->
+                    <table class="table table-sm table-borderless mt-2" style="width: 100%; font-size: 12px;">
+                        <thead>
+                            <tr class="border-bottom">
+                                <th class="text-right">Cant</th>
+                                <th class="text-left">Descripcion</th>
+                                <th class="text-left">Precio</th>
+                                <th class="text-right">SubTotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="total_descuento" t-value="0"/>
+                            <t t-set="total_items" t-value="0"/>
+                            <t t-foreach="o.order_line" t-as="line">
+                                <t t-if="line.product_id.default_code and ('DESCU' in line.product_id.default_code or 'REDONDEO' in line.product_id.default_code)">
+                                     <t t-set="total_items" t-value="total_items + 0"/>
+                                </t>
+                                <t t-else="">
+                                     <t t-set="total_items" t-value="total_items + 1"/>
+                                </t>
+                                <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code">
+                                    <t t-set="total_descuento" t-value="total_descuento + line.price_subtotal"/>
+                                </t>
+                                <t t-else="">
+                                <tr>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.product_uom_qty" />
+                                    </td>
+                                    <td class="text-left" style="text-align: left; vertical-align: middle;">
+                                        <span t-field="line.name" />
+                                    </td>
+                                    <td class="text-left" style="text-align: left; vertical-align: middle;">
+                                        <span t-field="line.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                    </td>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.price_subtotal" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                    </td>
+                                </tr>
+                                </t>
+                            </t>
+                        </tbody>
+                    </table>
+                    <!-- Totals -->
+                    <hr style="border: 1px solid #ccc; margin: 10px 0;"/>
+                    <table class="table table-sm table-borderless" style="page-break-inside: avoid;">
+                        <tr>
+                            <th class="text-end">Articulos</th>
+                            <th class="text-end">
+                                <span t-esc="total_items " />
+                            </th>
+                        </tr>
+                        <tr t-if="total_descuento &lt; 0">
+                            <th class="text-end">Descuentos</th>
+                            <th class="text-end">
+                                <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                            </th>
+                        </tr>
+                        <tr>
+                            <th class="text-end">TOTAL GENERAL</th>
+                            <th class="text-end">
+                                <span t-field="o.amount_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                            </th>
+                        </tr>
+                        <tr t-if="o.sale_discount &lt; 0">
+                            <th class="text-end">Precio con descuento</th>
+                            <th class="text-end">
+                                <span t-esc="o.sale_with_discount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                            </th>
+                        </tr>
+                        <tr t-if="o.sale_discount &lt; 0">
+                            <th class="text-end"></th>
+                            <th class="text-end">
+                                <span t-esc="o.sale_discounts" />
+                            </th>
+                        </tr>
+                    </table>
+
+                <div class="text-center mt-3 font-italic" style="font-size: 10px;">Gracias por su compra</div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_invoice_ticket">
+        <t t-call="web.html_container">
+	    <head>
+                <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+                <meta charset="UTF-8" />
+            </head>
+            <t t-foreach="docs" t-as="o">
+                <div class="page" style="font-size: 13px; font-family: 'Inconsolata', monospace;">
+			                <!-- HEADER PARA PREIMPRESO -->
+                <div name="company_address">
+
+		        <center>
+                            <img t-if="o.company_id.logo" t-att-src="image_data_uri(o.company_id.logo)" style="max-height: 80px; max-width: 100%;" alt="Logo" />
+	         	</center>
+                  <t t-esc="o.company_id.partner_id.name"/>
+
+                  <div>
+                  <t t-if="o.company_id.partner_id.street">
+                    <t t-esc="o.company_id.partner_id.street"/>,
+                    <t t-esc="o.company_id.partner_id.zip"/> <t t-esc="o.company_id.partner_id.city"/>,
+                    <t t-esc="o.company_id.partner_id.state_id.name"/>,
+                    <t t-esc="o.company_id.partner_id.country_id.name"/>.
+                  </t>
+                  </div>
+
+                  <div>
+                    <t t-esc="o.company_id.partner_id.l10n_latam_identification_type_id.name"/>:
+                    <t t-esc="o.company_id.partner_id.l10n_ar_formatted_vat"/>
+                  </div>
+
+                  <div>
+                    <t t-if="o.company_id.l10n_ar_afip_responsibility_type_id" t-esc="o.company_id.l10n_ar_afip_responsibility_type_id.name"/>
+                  </div>
+
+                  <div>
+                    <t t-if="o.company_id.l10n_ar_afip_start_date">
+                      <span>Inicio Actividades:</span>
+                      <t t-esc="o.company_id.l10n_ar_afip_start_date"/>
+                    </t>
+                  </div>
+
+                  <div>
+                    <t t-if="o.company_id.l10n_ar_gross_income_number">
+                      <span>Número de Ingresos Brutos:</span>
+                      <t t-esc="o.company_id.l10n_ar_gross_income_number"/>
+                    </t>
+                  </div>
+
+                  <div>
+                    <span>COMPROBANTE </span>
+                    <t t-esc="o.l10n_latam_document_type_id.report_name"/>
+                    <span> </span>
+                    <t t-esc="o.l10n_latam_document_type_id.l10n_ar_letter"/>
+                    <br/>
+                    <t t-esc="o.name"/>
+                    <div t-if="o.invoice_date">
+                        <strong>Fecha:</strong> <span t-field="o.invoice_date"/>
+                    </div>
+                  </div>
+
+                  <!--
+                  <t t-if="o.l10n_ar_afip_responsibility_type_id" t-esc="o.l10n_ar_afip_responsibility_type_id.name"/>
+                  -->
+
+                </div>
+                    <!-- Customer Info -->
+                    <div class="mt-2 text-left">
+                        <strong>Cliente:</strong>
+                        <br />
+                        <span t-field="o.partner_id.name" />
+                        <br />
+                        <t t-if="o.partner_id.vat">
+                            <span t-field="o.partner_id.l10n_latam_identification_type_id.name" />
+                            :
+                            <span t-field="o.partner_id.vat" />
+                            <br />
+                        </t>
+                        <span t-if="o.partner_id.street" t-field="o.partner_id.street" />
+                        <span t-if="o.partner_id.city" t-field="o.partner_id.city" />
+                    </div>
+                    <!-- Invoice Lines -->
+                    <table class="table table-sm table-borderless mt-2" style="width: 100%; font-size: 12px;">
+                        <thead>
+                            <tr class="border-bottom">
+                                <th class="text-right">Cant</th>
+                                <th class="text-left">IVA</th>
+                                <th class="text-right">Precio</th>
+                                <th class="text-right">SubTotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="total_descuento" t-value="0"/>
+                            <t t-set="total_items" t-value="0"/>
+                            <t t-foreach="o.invoice_line_ids" t-as="line">
+                                <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code or 'REDONDEO' in line.product_id.default_code">
+                                     <t t-set="total_items" t-value="total_items + 0"/>
+                                </t>
+                                <t t-else="">
+                                     <t t-set="total_items" t-value="total_items + 1"/>
+                                </t>
+                                <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code">
+                                    <t t-set="total_descuento" t-value="total_descuento + line.price_subtotal"/>
+                                </t>
+                                <t t-else="">
+				    <tr>
+                                    <td colspan="3" class="text-left font-weight-bold">
+                                        <span t-field="line.product_id.name" />
+                                    </td>
+			    </tr>
+				    <tr>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.quantity" />
+                                    </td>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.tax_ids" />
+                                    </td>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                    </td>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.price_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                    </td>
+                                </tr>
+                                </t>
+                            </t>
+                        </tbody>
+                    </table>
+                    <!-- Totals -->
+                    <table class="table table-sm table-borderless" style="page-break-inside: avoid;">
+                        <tr>
+                            <th class="text-end">Articulos</th>
+                            <th class="text-end">
+                                <span t-esc="total_items " />
+                            </th>
+                        </tr>
+                        <tr t-if="total_descuento &lt; 0">
+                            <th class="text-end">Descuentos</th>
+                            <th class="text-end">
+                                <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                            </th>
+                        </tr>
+			    <tr>
+				    <th class="text-end" >Total</th>
+				    <th class="text-end" >
+                                          <span t-field="o.amount_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+				    </th>
+			    </tr>
+		    </table>
+
+        <div id="qrcode" position="after">
+            <!-- RG 5614/2024: Show ARCA VAT and Other National Internal Taxes -->
+            <!-- Nota: Esta funcionalidad requiere Odoo 18+ con l10n_ar actualizado -->
+        </div>
+
+                    <!-- AFIP QR -->
+                    <div t-if="o.afip_qr_code" class="mt-3 text-center">
+                        <img t-att-src="'/report/barcode/?barcode_type=QR&amp;value=%s&amp;width=300&amp;height=300' % o.afip_qr_code" alt="qr" style="height:100px"/>
+                        <br />
+                    <span>
+                        CAE:
+                        <span t-field="o.afip_auth_code" />
+                    </span>
+                    <br />
+                    <span>
+                        Vto CAE:
+                        <span t-field="o.afip_auth_code_due" />
+                    </span>
+                    </div>
+                </div>
+                <div class="text-center mt-3 font-italic" style="font-size: 10px;">Gracias por su compra</div>
+            </t>
+        </t>
+    </template>
+</odoo>

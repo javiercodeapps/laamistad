@@ -385,15 +385,42 @@ class SaleOrderQR(models.Model):
 #####################
 ### IMPRIMIR LA FACTURA
 
+  # def action_print_invoice(self):
+  #     self.ensure_one()
+  #     invoice = self.invoice_ids.filtered(lambda inv: inv.move_type == 'out_invoice' and inv.state != 'cancel')
+  #     if not invoice:
+  #         raise UserError("No hay factura relacionada con este pedido de venta.")
+  #     if len(invoice) > 1:
+  #         raise UserError("Hay más de una factura asociada. Este botón solo admite una.")
+
+  #     return self.env.ref("account.account_invoices").report_action(invoice)
     def action_print_invoice(self):
         self.ensure_one()
         invoice = self.invoice_ids.filtered(lambda inv: inv.move_type == 'out_invoice' and inv.state != 'cancel')
+        if not invoice and self.tag_ids and any(tag.name == 'CTACTE' for tag in self.tag_ids):
+            #return self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b").report_action(self)
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b")
+            result = report_invoice.report_action(self)
+            if isinstance(result, dict):
+                result['close_on_report_done'] = True
+            return result
         if not invoice:
             raise UserError("No hay factura relacionada con este pedido de venta.")
         if len(invoice) > 1:
             raise UserError("Hay más de una factura asociada. Este botón solo admite una.")
 
-        return self.env.ref("account.account_invoices").report_action(invoice)
+        if invoice.journal_id.l10n_ar_afip_pos_system == 'II_IM':
+            #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket_b").report_action(invoice)
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket_b")
+        else:
+            #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket").report_action(invoice)
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
+
+        result = report_invoice.report_action(invoice)
+        if isinstance(result, dict):
+            result['close_on_report_done'] = True
+        
+        return result
 
     def prepare_payment_mp_qr(self,efectivo=0):
         self.ensure_one()
@@ -411,4 +438,3 @@ class SaleOrderQR(models.Model):
         res["sale_order_ids"] = [(6, 0, [self.id])]
 
         return res
-
