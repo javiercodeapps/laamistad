@@ -414,7 +414,7 @@ class SaleOrderQR(models.Model):
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket_b")
         else:
             #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket").report_action(invoice)
-            report_invoice = self.env.ref("account.report_invoice_with_payments")
+            report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
 
         result = report_invoice.report_action(invoice)
         if isinstance(result, dict):
