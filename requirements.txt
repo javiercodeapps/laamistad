@@ -1,7 +1,6 @@
 beautifulsoup4==4.13.3
 bokeh==3.1.1
 chardet==4.0.0
-cryptography==3.4.8
 email_validator
 endesive==2.18.5
 genshi==0.7.7
@@ -24,7 +23,8 @@ plotly==5.13.1
 py3o.formats==0.3
 py3o.template==0.10.0
 pyjwt
-pyOpenSSL==20.0.1
+cryptography==3.4.8
+pyOpenSSL==21.0.0
 pyrfc6266==1.0.2
 pysaml2
 pyzbar==0.1.9
