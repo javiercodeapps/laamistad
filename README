@@ -1,0 +1,1 @@
+python3 -m pip install pyOpenSSL==21.0.0 cryptography==3.4.8
