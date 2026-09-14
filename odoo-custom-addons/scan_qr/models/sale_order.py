@@ -15,6 +15,8 @@ class SaleOrderQR(models.Model):
     scale = fields.Char(string="Scale Number", size=3)
     total_items = fields.Integer(string="Total Items", default=0)
     payment_provider = fields.Many2one('payment.transaction')
+    caja_id = fields.Many2one('account.cashbox.session', string="Sesión de Caja")
+    is_admin = fields.Boolean(default=False, store=True,tracking=True)
 
 
     ## Parses QR data and creates a Sale Order
@@ -198,6 +200,7 @@ class SaleOrderQR(models.Model):
             tag_id = self.env["crm.tag"].search([('name','=','CTACTE')])
             self.tag_ids = tag_id.ids 
             self.state = 'sent'
+            self.caja_id = caja.id
             self.date_order = fields.datetime.now()
            #self.sale_discount = 0
            #self.sale_with_discount = 0
@@ -209,6 +212,8 @@ class SaleOrderQR(models.Model):
                     raise UserError('No puede aplicar un redondeo mayor a 1.000 (%s) ' % self.redondeo)
             self.apply_discount()
             _logger.info('Desspues de confirmar %s %s %s' % (payment_type,efectivo,context.get('payment_type') ) )
+            if not self.caja_id:
+                self.caja_id = caja.id
             self.action_confirm()
             self.is_admin = False
             provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('state','=','enabled'),('company_id.id','=',self.company_id.id)],limit=1)
