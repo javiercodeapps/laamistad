@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="action_plu_download" model="ir.actions.act_url">
+        <field name="name">Descargar PLU</field>
+        <field name="url">/product_itegra/plu.txt</field>
+        <field name="target">self</field>
+    </record>
+
+    <menuitem
+        id="menu_plu_download"
+	name="Listas Itegra"
+        parent="sale.product_menu_catalog"
+        action="action_plu_download"
+        sequence="45"
+    />
+</odoo>
