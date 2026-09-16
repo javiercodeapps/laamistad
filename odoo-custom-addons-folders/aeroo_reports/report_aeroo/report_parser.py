@@ -12,9 +12,9 @@ from base64 import b64decode
 import time
 import datetime
 import base64
-import aeroolib as aeroolib
-from aeroolib.plugins.opendocument import Template, OOSerializer, _filter
-from aeroolib import __version__ as aeroolib_version
+#import aeroolib as aeroolib
+#from aeroolib.plugins.opendocument import Template, OOSerializer, _filter
+#from aeroolib import __version__ as aeroolib_version
 from currency2text import supported_language
 from .docs_client_lib import DOCSConnection
 from .exceptions import ConnectionError
