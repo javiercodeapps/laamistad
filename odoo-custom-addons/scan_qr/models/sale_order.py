@@ -154,6 +154,7 @@ class SaleOrderQR(models.Model):
 ########################
 # Creamos una accion unica y le pasamos por context y tipo de pago, tiene que existir en los sale_order_type
     def action_confirm_type(self,efectivo=None):
+        caja = self.env['account.cashbox.session'].search([('state','=','opened'),])
         context = self.env.context
         # Find the Sale Order Type where the name contains 'Efectivo' or 'Tarjeta' or 'Mercado Pago' or 'CC'
         payment_type = context.get('payment_type')
@@ -406,8 +407,8 @@ class SaleOrderQR(models.Model):
             #return self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b").report_action(self)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket")
             result = report_invoice.report_action(self)
-            if isinstance(result, dict):
-                result['close_on_report_done'] = True
+           #if isinstance(result, dict):
+           #    result['close_on_report_done'] = True
             return result
         if not invoice:
             raise UserError("No hay factura relacionada con este pedido de venta.")
@@ -422,8 +423,8 @@ class SaleOrderQR(models.Model):
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
 
         result = report_invoice.report_action(invoice)
-        if isinstance(result, dict):
-            result['close_on_report_done'] = True
+       #if isinstance(result, dict):
+       #    result['close_on_report_done'] = True
         
         return result
 
