@@ -6,7 +6,7 @@
     "license": "LGPL-3",
     "category": "Sales",
     "version": "15.0.1.0.0",
-    "depends": ["sale"],
+    "depends": ["sale","sale_order_type"],
     "data": [
         "security/ir.model.access.csv",
         "views/sale_order_discount.xml",
