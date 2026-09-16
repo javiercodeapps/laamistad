@@ -69,6 +69,7 @@ class SaleOrderQR(models.Model):
         if not sale_order_type:
             raise UserError(f"No se encontró el Tipos de pedido de venta '{payment_type}' %s. " % self.env.company.id)
 
+        caja = self.env['account.cashbox.session'].search([('state','=','opened'),])
         # Create Sale Order
         order = self.create({
             "partner_id": 7, # Consumidor Final Anónimo
@@ -79,6 +80,7 @@ class SaleOrderQR(models.Model):
             "scale": scale,
             "total_items": total_items,
             "payment_term_id": payment_term.id,
+            "caja_id":caja.id,
         })
         order.write({"type_id": sale_order_type.id})
         return order.id
