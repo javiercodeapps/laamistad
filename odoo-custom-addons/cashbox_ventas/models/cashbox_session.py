@@ -260,8 +260,10 @@ class CashBoxSale(models.Model):
         # Busco que no queden  ordenes en borrador
         borradores=self.env['sale.order'].search([('caja_id','=',self.id),('state','=','draft')])
         if borradores:
-            raise UserError('No se puedeo continuar, hay ordenes pendientes (borrador)')
-        return True
+            raise UserError('No se puede continuar, hay ordenes pendientes de confirmar (borrador)')
+        res = super().action_closing_control()
+        return res
+
     def action_account_cashbox_session_close_auth(self):
         popup = self.env['paimon.popup.confirmation']
         action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
