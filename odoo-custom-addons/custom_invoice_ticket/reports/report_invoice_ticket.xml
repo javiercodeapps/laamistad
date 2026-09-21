@@ -84,10 +84,10 @@
                     <table class="table table-sm table-borderless mt-2" style="width: 100%; font-size: 12px;">
                         <thead>
                             <tr class="border-bottom">
-                                <th class="text-right">Cant</th>
-                                <th class="text-left">IVA</th>
-                                <th class="text-right">Precio</th>
-                                <th class="text-right">SubTotal</th>
+                                <th class="text-right">Descripcion</th>
+                                <th class="text-left">Cantidad</th>
+                                <th class="text-right">Precio Unitario</th>
+                                <th class="text-right">Importe</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -105,19 +105,15 @@
                                 </t>
                                 <t t-else="">
 				    <tr>
-                                    <td colspan="3" class="text-left font-weight-bold">
+                                    <td  class="text-left font-weight-bold">
                                         <span t-field="line.product_id.name" />
                                     </td>
-			    </tr>
-				    <tr>
                                     <td class="text-right" style="text-align: right; vertical-align: middle;">
                                         <span t-field="line.quantity" />
+                                        <span t-field="line.product_uom_id.name" groups="uom.group_uom"/>
                                     </td>
                                     <td class="text-right" style="text-align: right; vertical-align: middle;">
-                                        <span t-field="line.tax_ids" />
-                                    </td>
-                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
-                                        <span t-field="line.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                        <t t-esc="'%.0f' % line.price_unit"/>
                                     </td>
                                     <td class="text-right" style="text-align: right; vertical-align: middle;">
                                         <span t-field="line.price_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
@@ -129,30 +125,51 @@
                     </table>
                     <!-- Totals -->
                     <table class="table table-sm table-borderless" style="page-break-inside: avoid;">
-                        <tr>
-                            <th class="text-end">Articulos</th>
-                            <th class="text-end">
-                                <span t-esc="total_items " />
-                            </th>
-                        </tr>
                         <tr t-if="total_descuento &lt; 0">
                             <th class="text-end">Descuentos</th>
                             <th class="text-end">
                                 <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
                             </th>
                         </tr>
-			    <tr>
-				    <th class="text-end" >Total</th>
-				    <th class="text-end" >
-                                          <span t-field="o.amount_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
-				    </th>
-			    </tr>
-		    </table>
+		            </table>
 
-        <div id="qrcode" position="after">
-            <!-- RG 5614/2024: Show ARCA VAT and Other National Internal Taxes -->
-            <!-- Nota: Esta funcionalidad requiere Odoo 18+ con l10n_ar actualizado -->
-        </div>
+                    <!-- Tax Breakdown for Type A / Transparencia Fiscal for Type B/NC/ND -->
+                    <t t-set="tax_breakdown" t-value="o._get_tax_breakdown()"/>
+                    <t t-if="tax_breakdown">
+                        <!-- Type A: Discriminación de impuestos -->
+                        <t t-if="tax_breakdown.get('type') == 'tax_breakdown'">
+                            <div class="mt-2" style="border: 1px solid #000; padding: 5px; font-size: 11px;">
+                                <div>
+                                    <strong>Base imponible </strong>
+                                    <span t-esc="tax_breakdown['total_base']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                </div>
+                                <t t-foreach="tax_breakdown['taxes']" t-as="tax">
+                                    <div>
+                                        <span t-esc="tax['name']"/>
+                                        <span> el </span>
+                                        <span t-esc="tax['base']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                        <span> </span>
+                                        <span t-esc="tax['tax_amount']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                    </div>
+                                </t>
+                                <div class="mt-1">
+                                    <strong>Total </strong>
+                                    <span t-field="o.amount_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                </div>
+                            </div>
+                        </t>
+                        <!-- Type B/NC/ND: Transparencia Fiscal -->
+                        <t t-if="tax_breakdown.get('type') == 'transparencia_fiscal'">
+                            <div class="mt-2" style="font-size: 10px; text-align: center;">
+                                <div>Régimen de Transparencia Fiscal para el</div>
+                                <div>Consumidor Final (Ley 27.743)</div>
+                                <div class="mt-1">
+                                    <strong>IVA Contenido </strong>
+                                    <span t-esc="tax_breakdown['iva_contenido']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                </div>
+                            </div>
+                        </t>
+                    </t>
 
                     <!-- AFIP QR -->
                     <div t-if="o.afip_qr_code" class="mt-3 text-center">
