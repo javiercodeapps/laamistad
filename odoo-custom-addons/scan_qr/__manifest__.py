@@ -12,6 +12,8 @@
         "views/scan_qr_wizard_views.xml",
         "views/custom_popup_confirmation.xml",
         "views/sale_order_views.xml",
+        "views/server_action_mp_link_multi.xml",
+        "views/mp_link_multi_wizard_views.xml",
     # Para prueba de reportes:
     'views/sale_order_invoice_report.xml',
     'views/report.xml'

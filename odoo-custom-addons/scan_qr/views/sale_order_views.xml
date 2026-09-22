@@ -110,6 +110,12 @@
 		    context="{'payment_type': 'CTACTE Factura'}"
 	            attrs="{'invisible': [('state', 'not in', ['sent'])]}"
                     />
+                <button name="action_open_mp_link_wizard"
+                    type="object"
+                    string="MP Link"
+                    class="btn btn-primary px-3 py-3"
+	            attrs="{'invisible': [('state', 'not in', ['draft', 'sent', 'sale'])]}"
+                    />
                 <button
                     name="action_confirm_type"
                     string="Cuenta Corriente"

@@ -23,11 +23,11 @@ plotly==5.13.1
 py3o.formats==0.3
 py3o.template==0.10.0
 pyjwt
-cryptography==3.4.8
-pyOpenSSL==21.0.0
 pyrfc6266==1.0.2
 pysaml2
 pyzbar==0.1.9
 requests
 responses==0.25.7
 xlrd
+cryptography==3.4.8
+pyOpenSSL==21.0.0

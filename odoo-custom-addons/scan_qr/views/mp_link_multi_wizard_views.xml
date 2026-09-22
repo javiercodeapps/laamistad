@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mp_link_multi_wizard_form" model="ir.ui.view">
+        <field name="name">mp.link.multi.wizard.form</field>
+        <field name="model">mp.link.multi.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Link de Pago">
+                <field name="state" invisible="1"/>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <span>Link de Pago</span>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Pedidos Seleccionados">
+                            <field name="order_ids" widget="many2many_tags" readonly="1"/>
+                        </group>
+                        <group string="Resumen">
+                            <field name="partner_id" readonly="1"/>
+                            <field name="total_amount" widget="monetary"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+
+                    <!-- Draft state: show generate button -->
+                    <footer attrs="{'invisible': [('state', '!=', 'draft')]}">
+                        <button name="action_generate_link" string="Generar Link" type="object" class="btn btn-primary"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                    </footer>
+
+                    <!-- Done state: show link -->
+                    <div attrs="{'invisible': [('state', '!=', 'done')]}" class="mt-3">
+                        <div class="alert alert-success" role="alert">
+                            <strong>Link generado exitosamente!</strong>
+                        </div>
+                        <group string="Link de Pago">
+                            <field name="mp_link" widget="url"/>
+                        </group>
+                    </div>
+
+                    <footer attrs="{'invisible': [('state', '!=', 'done')]}">
+                        <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mp_link_multi_wizard" model="ir.actions.act_window">
+        <field name="name">Link de Pago</field>
+        <field name="res_model">mp.link.multi.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_order_ids': active_ids}</field>
+    </record>
+</odoo>
