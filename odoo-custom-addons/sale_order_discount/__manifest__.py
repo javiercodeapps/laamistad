@@ -5,7 +5,7 @@
     
     "license": "LGPL-3",
     "category": "Sales",
-    "version": "15.0.1.0.0",
+    "version": "16.0.1.0.0",
     "depends": ["sale","sale_order_type"],
     "data": [
         "security/ir.model.access.csv",

@@ -32,3 +32,4 @@ xlrd
 cryptography==3.4.8
 pyOpenSSL==21.0.0
 mercadopago
+--force-reinstall -r requirements.txt

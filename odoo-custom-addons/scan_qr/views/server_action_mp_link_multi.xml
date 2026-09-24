@@ -10,6 +10,5 @@
             return action
         </field>
         <field name="binding_model_id" ref="sale.model_sale_order"/>
-        <field name="binding_view_type">list</field>
     </record>
 </odoo>

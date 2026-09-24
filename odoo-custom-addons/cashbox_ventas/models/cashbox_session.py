@@ -6,6 +6,10 @@ from io import BytesIO
 from base64 import b64decode
 import logging
 _logger = logging.getLogger(__name__)
+# Modificaciones
+# Unificar los tipos de pago de Mercado Pago y MP en uno solo y CTACTE
+# Solo tener en cuenta los pedidos de venta totalmente facturas,  y los pedidos enviados a CTACTE, para el resumen de caja. Los pedidos de venta que no esten facturados ni enviados a CTACTE no se tienen en cuenta.
+# RESUMEN CTACTE , incoportar en la apertura de la caja, las ctasctes pendiientes de cobro, y agregar al cierre las ventas y las combranzas del dia, para opterner un saldo final
 
 class CashBoxSale(models.Model):
     _inherit = ['account.cashbox.session']
