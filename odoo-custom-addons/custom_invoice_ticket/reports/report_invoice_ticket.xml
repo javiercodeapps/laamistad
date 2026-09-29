@@ -92,6 +92,7 @@
                         </thead>
                         <tbody>
                             <t t-set="total_descuento" t-value="0"/>
+                            <t t-set="total_nombre" t-value="Descuento"/>
                             <t t-set="total_items" t-value="0"/>
                             <t t-foreach="o.invoice_line_ids" t-as="line">
                                 <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code or 'REDONDEO' in line.product_id.default_code">
@@ -126,11 +127,24 @@
                     <!-- Totals -->
                     <table class="table table-sm table-borderless" style="page-break-inside: avoid;">
                         <tr t-if="total_descuento &lt; 0">
-                            <th class="text-end">Descuentos</th>
+                            <th class="text-end">
+                                Total sin descuento
+                            </th>
                             <th class="text-end">
                                 <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
                             </th>
                         </tr>
+                        <tr t-if="total_descuento &lt; 0">
+                            <th class="text-end">
+                                <span t-esc="total_nombre"/>
+                                <span t-esc="o.sale_discount_percent"/>
+                                %
+                            </th>
+                            <th class="text-end">
+                                <span t-esc="o.amount - total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                            </th>
+                        </tr>
+                        <hr t-if="total_descuento &lt; 0"/>
 		            </table>
 
                     <!-- Tax Breakdown for Type A / Transparencia Fiscal for Type B/NC/ND -->
