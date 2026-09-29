@@ -20,7 +20,7 @@ class SaleOrderQR(models.Model):
                 if record.caja_id.state != 'opened':
                     raise UserError(_(
                         "No se puede cancelar el pedido %s porque la sesión de caja "
-                        "asociada (%s) no está en estado 'Abierta'."
+                        "asociada (%s) no está en estado 'Abierta'. "
                     ) % (order.name, record.caja_id.name))
             if self.state == 'draft':
                 self.state = 'cancel'
