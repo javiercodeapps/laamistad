@@ -153,7 +153,7 @@ class CashBoxSale(models.Model):
 
                 self.env['account.cashbox.sale.line'].create({'type_id':'%s-%s' % (type_orden,t),
                                                               'count':cantidad.get(t,0),
-                                                              'amount':totales[t],
+                                                              'amount':totales[t] * -1,
                                                               'cashbox_id':self.id,
                                                               'type_pay_id':'CTACTE',
                                                               'ventas_ids':[(6,0,ids.get(t,[]))]})
@@ -175,7 +175,7 @@ class CashBoxSale(models.Model):
                             resumen = True
                             ctactereumen += line.amount
                         else:
-                            ctactereumen -= line.amount
+                            ctactereumen -= abs(line.amount)
             if not resumen:
                 # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
                 ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
@@ -183,7 +183,7 @@ class CashBoxSale(models.Model):
                     if 'CTACTE' in v.type_id.name:
                         ctactereumen += v.amount_total
 
-            self.env['account.cashbox.sale.line'].create({'type_id':'RESUMEN',
+            self.env['account.cashbox.sale.line'].create({'type_id':'0-RESUMEN',
                                                           'count':0,
                                                           'amount':ctactereumen,
                                                           'cashbox_id':self.id,
