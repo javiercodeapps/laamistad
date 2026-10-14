@@ -6,6 +6,9 @@ import re
 import textwrap
 import logging
 _logger = logging.getLogger(__name__)
+# Bloquear autozorizaciones del encargado cuando el pedido esta enviado y facturado 
+# Bloquear autizacion de caja cerrada
+
 
 class SaleOrderQR(models.Model):
     _inherit = "sale.order"

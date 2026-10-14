@@ -6,6 +6,20 @@ from io import BytesIO
 from base64 import b64decode
 import logging
 _logger = logging.getLogger(__name__)
+# Modificaciones
+# Unificar los tipos de pago de Mercado Pago y MP en uno solo y CTACTE
+# Solo tener en cuenta los pedidos de venta totalmente facturas,  y los pedidos enviados a CTACTE, para el resumen de caja. Los pedidos de venta que no esten facturados ni enviados a CTACTE no se tienen en cuenta.
+
+# RESUMEN CTACTE , incoportar en la apertura de la caja, las ctasctes pendientes de cobro, y agregar al cierre las ventas y las combranzas del dia, para obtener un saldo final
+# Para el calculo de inicio de la cuenta corriente, busco el resumen de la anterior si es que lo tengo
+# Esto lo vamos a definir un nuevo tipo  como RESUMENCTACTE
+
+# Separar Tipo Varios en los tipos de pago, como Efectivo, MP, Otros, CTACTE, Transferencias, Recaudacion, Descuentos y Gastos
+
+# Revisar los cobras de cuenta corriente y fijar en el detalle si tienen descuento e imporcorporarlos a los del dia
+
+# Vamos a controlar el inicio y fin del diario de MP, pero la carga del saldo final  tiene que ser automatica, cuando se preciona el boton de control
+
 
 class CashBoxSale(models.Model):
     _inherit = ['account.cashbox.session']
@@ -93,13 +107,30 @@ class CashBoxSale(models.Model):
                                     if so.create_date < self.opening_date:
                                         ctacte=True
                             if ctacte:
-                                if pay.journal_id.name not in totales:
-                                    totales[pay.journal_id.name]=0
-                                    cantidad[pay.journal_id.name]=0
-                                    ids[pay.journal_id.name]=[]
-                                totales[pay.journal_id.name]+=pay.amount_signed
-                                cantidad[pay.journal_id.name]+=1
-                                ids[pay.journal_id.name].append(so.order_id.id)
+                                pay_name = pay.journal_id.name 
+                                if pay_name not in totales:
+                                    totales[pay_name]=0
+                                    cantidad[pay_name]=0
+                                    ids[pay_name]=[]
+                                totales[pay_name]+=pay.amount_signed
+                                cantidad[pay_name]+=1
+                                ids[pay_name].append(so.order_id.id)
+                                # Reviso si tiene descuento y lo agrego al total de descuentos
+                                for line in so.order_id.order_line:
+                                    if 'Mercado Pago' in pay_name or 'MP' in pay_name:
+                                        pay_name = 'MP CTACTE'
+                                    if 'Efectivo' in pay_name:
+                                        pay_name = 'Efectivo CTACTE'
+                                    if 'DESCUENTO' in line.product_id.name:
+                                        _logger.info('DESCUENTO %s %s' % (so.order_id.name,line.price_total))
+                                        # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                        totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / so.order_id.amount_total)
+                                        k = '%s %s' % (pay_name,line.product_id.name)
+                                        if k not in descuentos:
+                                            descuentos[k] = 0
+                                            descuentosc[k] = 0
+                                        descuentos[k] += line.price_total  * (pay.amount_total / so.order_id.amount_total)
+                                        descuentosc[k]+=1
                             else:
                                 if pay.journal_id.name not in cobros:
                                     cobros[pay.journal_id.name]=0
@@ -110,8 +141,6 @@ class CashBoxSale(models.Model):
                                 if so:
                                     cids[pay.journal_id.name].append(so.order_id.id)
 
-            #_logger.info('%s %s %s' % (totales,cantidad,ids))
-            #_logger.info('%s %s %s' % (cobros,ccobros,cids))
             for t in totales:
                 type_orden = '1-'
                 for o in orden:
@@ -124,6 +153,37 @@ class CashBoxSale(models.Model):
                                                               'cashbox_id':self.id,
                                                               'type_pay_id':'CTACTE',
                                                               'ventas_ids':[(6,0,ids[t])]})
+                                    
+            # Busco todas las ventas de cuentas corrientes pendientes de cobro a la fecha de aperturura si la caja anteriorio no tiene un RESUEMENCTACTE, sino busco el resumen de la caja anterior y lo agrego al cierre de la caja actual
+            # Busco resumen anterior
+            last_session = self.env['account.cashbox.session'].sudo().search([('cashbox_id', '=', rec.cashbox_id.id), ('state', '=', 'closed')], order="closing_date desc", limit=1)
+            resumen = False
+            if last_session:
+                # Con esta session busco el detalle de la caja anterior y lo agrego al cierre de la caja actual
+                # y sumar los totales de CTACTERESUMEN + VENTAS CTACTE + VENTAS CTACTE Factura - CTACTE 
+                for line in last_session.resumen_ids:
+                    ctactereumen = 0
+                    if 'CTACTE' in line.type_id:
+                        ctactereumen += line.amount
+                    if 'CTACTE' in line.type_pay_id:
+                        if 'RESUMEN' in line.type_id:
+                            resumen = True
+                            ctactereumen += line.amount
+                        else:
+                            ctactereumen -= line.amount
+                if not reumen:
+                    # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
+                    ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
+                    for v in ventas:
+                        if 'CTACTE' in v.type_id.name:
+                            ctactereumen += v.amount_total
+
+                self.env['account.cashbox.sale.line'].create({'type_id':'RESUMEN',
+                                                              'count':0,
+                                                              'amount':ctactereumen,
+                                                              'cashbox_id':self.id,
+                                                              'type_pay_id':'CTACTE',
+                                                              'ventas_ids':[]})
             for t in cobros:
                 type_orden = '1-'
                 for o in orden:
@@ -171,24 +231,49 @@ class CashBoxSale(models.Model):
                     # Unificar Tipo MP como uno solo
                     if v.create_date < self.opening_date:
                         continue
-                    if v.type_id.name not in totales:
-                        totales[v.type_id.name]=0
-                        cantidad[v.type_id.name]=0
-                        ids[v.type_id.name]=[]
-                    totales[v.type_id.name]+=v.amount_total
-                    cantidad[v.type_id.name]+=1
-                    ids[v.type_id.name].append(v.id)
-                    # Busco descuentos en la orden
-                    for line in v.order_line:
-                        if 'DESCUENTO' in line.product_id.name:
-                            _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
-                            totales[v.type_id.name]+=(line.price_total * -1)
-                            k = '%s %s' % (v.type_id.name,line.product_id.name)
-                            if k not in descuentos:
-                                descuentos[k] = 0
-                                descuentosc[k] = 0
-                            descuentos[k] += line.price_total 
-                            descuentosc[k]+=1
+                    type_name = v.type_id.name
+                    if 'Mercado Pago' in type_name or 'MP' in type_name:
+                        type_name = 'MP'
+                    if type_name not in totales:
+                        totales[type_name]=0
+                        cantidad[type_name]=0
+                        ids[type_name]=[]
+                    # Si el tipo de venta es Varios, tenemos que revisar el detalle del pago, y separar los montos seugn el diario de pago
+                    if 'Varios' in type_name:
+                        for pay in v.payment_ids:
+                            if pay.state == 'posted':
+                                pay_name = pay.journal_id.name
+                                if 'Mercado Pago' in pay.journal_id.name:
+                                    pay_name = 'MP'
+                                totales[pay_name]+=pay.amount_total
+                                cantidad[pay_name]+=1
+                                ids[pay_name].append(v.id)
+                                for line in v.order_line:
+                                if 'DESCUENTO' in line.product_id.name:
+                                    _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
+                                    # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                    totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / v.amount_total)
+                                    k = '%s %s' % (pay_name,line.product_id.name)
+                                    if k not in descuentos:
+                                        descuentos[k] = 0
+                                        descuentosc[k] = 0
+                                    descuentos[k] += line.price_total  * (pay.amount_total / v.amount_total)
+                                    descuentosc[k]+=1
+                    else:
+                        totales[type_name]+=v.amount_total
+                        cantidad[type_name]+=1
+                        ids[type_name].append(v.id)
+                        # Busco descuentos en la orden
+                        for line in v.order_line:
+                            if 'DESCUENTO' in line.product_id.name:
+                                _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
+                                totales[type_name]+=(line.price_total * -1)
+                                k = '%s %s' % (type_name,line.product_id.name)
+                                if k not in descuentos:
+                                    descuentos[k] = 0
+                                    descuentosc[k] = 0
+                                descuentos[k] += line.price_total 
+                                descuentosc[k]+=1
 
             v = []
             for t in totales:
@@ -226,25 +311,24 @@ class CashBoxSale(models.Model):
             if ventas:
                 ids= {}
                 for v in ventas:
+                    # Verifico que el pedido este facturado o si es de CTACTE, que este enviado a CTACTE, sino no lo tengo en cuenta
+                    if v.state == 'sent' and  'CTACTE' not in v.type_id.name:
+                        continue
+                    if v.state == 'sale' and v.invoice_status != 'invoiced':
+                        continue
                     # Unificar Tipo MP como uno solo
-                    if v.type_id.name not in totales:
-                        totales[v.type_id.name]=0
-                        cantidad[v.type_id.name]=0
-                        ids[v.type_id.name] = []
-                    totales[v.type_id.name]+=v.amount_total
-                    cantidad[v.type_id.name]+=1
-                    ids[v.type_id.name].append(v.id)
-                    _logger.info(v.type_id.name,v.id)
+                    type_name = v.type_id.name
+                    if 'Mercado Pago' in type_name or 'MP' in type_name:
+                        type_name = 'MP'
+                    if type_name not in totales:
+                        totales[type_name]=0
+                        cantidad[type_name]=0
+                        ids[type_name] = []
+                    totales[type_name]+=v.amount_total
+                    cantidad[type_name]+=1
+                    ids[type_name].append(v.id)
+                    _logger.info(type_name,v.id)
             v = []
-           #for t in totales:
-           #    _logger.info('CTACTE %s' % cantidad)
-           #    self.env['account.cashbox.sale.line'].create({'type_id':t,
-           #                                                  'count':cantidad[t],
-           #                                                  'amount':totales[t],
-           #                                                  'cashbox_id':self.id,
-           #                                                  'type_pay_id':'CTACTE',
-           #                                                  'ventas_ids': [(6, 0, ids[t])] })
-
 
         self.resumen_ids = self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)])
 
@@ -262,6 +346,11 @@ class CashBoxSale(models.Model):
         if borradores:
             raise UserError('No se puede continuar, hay ordenes pendientes de confirmar (borrador)')
         res = super().action_closing_control()
+        # solo para los diarios de caja de quesan de Mercado Pago tengo que copiar el balence_end como balance_end_real
+        for line in self.cashbox_id.line_ids:
+            if 'Mercado Pago' in line.journal_id.name or 'MP' in line.journal_id.name:
+                self.balance_end_real = self.balance_end    
+
         return res
 
     def action_account_cashbox_session_close_auth(self):

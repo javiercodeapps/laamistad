@@ -1,0 +1,4 @@
+Link de pago desde el pedido, o desde la seleccion y la rueda de accion generar link, para uno o varios
+Al momento de recibir el pago, generar las facturas separadas y aplicarlas a un mismo pago
+Enviar mensaje al chat del grupo de la sucursal
+#Codigo codigo corto de la empresa

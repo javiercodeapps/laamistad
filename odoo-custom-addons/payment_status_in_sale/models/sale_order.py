@@ -54,7 +54,7 @@ class SaleOrder(models.Model):
         will be either in paid,not paid,partially paid, reversed etc."""
         for order in self:
             order.payment_status = 'No invoice'
-            payment_states = order.invoice_ids.mapped('payment_state')
+           #payment_states = order.invoice_ids.mapped('payment_state')
             payment_states = []
             for invoice in order.invoice_ids:
                 if invoice.state != 'cancel':
