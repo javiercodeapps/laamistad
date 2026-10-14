@@ -34,7 +34,7 @@
         <field name="binding_type">report</field>
         <field name="paperformat_id" ref="custom_invoice_ticket.paperformat_ticket_80mm" />
     </record>
-    <record id="action_report_invoice_ticket" model="ir.actions.report">
+    <record id="action_report_invoice_ticket_pdf" model="ir.actions.report">
         <field name="name">Invoice Ticket (PDF)</field>
         <field name="model">account.move</field>
         <field name="report_type">qweb-pdf</field>
@@ -45,7 +45,7 @@
         <field name="binding_type">report</field>
         <field name="paperformat_id" ref="custom_invoice_ticket.paperformat_ticket_80mm" />
     </record>
-    <record id="action_report_sale_order_ticket_b" model="ir.actions.report">
+    <record id="action_report_sale_order_ticket_b_pdf" model="ir.actions.report">
         <field name="name">Presupuesto Ticket B (PDF)</field>
         <field name="model">sale.order</field>
         <field name="report_type">qweb-pdf</field>
