@@ -235,4 +235,7 @@
             </t>
         </t>
     </template>
+    <template id="report_invoice_ticket_pdf">
+        <t t-call="report_invoice_ticket"/>
+    </template>
 </odoo>
