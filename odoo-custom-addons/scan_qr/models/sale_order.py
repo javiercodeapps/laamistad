@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from datetime import datetime, timedelta
 from odoo.exceptions import UserError
 import time
@@ -8,6 +8,7 @@ import logging
 _logger = logging.getLogger(__name__)
 # Bloquear autozorizaciones del encargado cuando el pedido esta enviado y facturado 
 # Bloquear autizacion de caja cerrada
+# 
 
 
 class SaleOrderQR(models.Model):
@@ -20,7 +21,7 @@ class SaleOrderQR(models.Model):
     payment_provider = fields.Many2one('payment.transaction')
     caja_id = fields.Many2one('account.cashbox.session', string="Sesión de Caja")
     is_admin = fields.Boolean(default=False, store=True,tracking=True)
-
+    mp_link = fields.Char(string="MP Link", copy=False)
 
     ## Parses QR data and creates a Sale Order
     @api.model
@@ -237,6 +238,20 @@ class SaleOrderQR(models.Model):
                     payment_provider = self.pay_mp_qr(self.efectivo)
                     self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
+            elif payment_type in ['MP Link']:
+                _logger.info('Procesando pago')
+                _logger.info('Procesando pago %s' % payment_type)
+                _logger.info('Procesando pago %s' % self)
+                provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([('company_id.id','=', self.company_id.id)], limit=1)
+                _logger.info('Procesando pago %s' % provider)
+                if not self.payment_provider:
+                    self.payment_provider = provider.id
+                    _logger.info("Creando Link de pago:" )
+                    mp_link = provider.create_order_link(self)
+                    _logger.info("Link de pago: %s" % mp_link)
+                    self.mp_link = mp_link
+                    self.message_post(body="Link de pago: %s" % mp_link)
+                    self.env.cr.commit()
             elif payment_type != 'CTACTE Factura':
                 for moves in self.invoice_ids:
                     if self.type_id.name != 'Efectivo' and self.efectivo > 0:
@@ -390,6 +405,23 @@ class SaleOrderQR(models.Model):
             "view_mode": "form",
             "target": "new",
             "context": {"default_sale_order_id": self.id},
+        }
+
+    def action_mp_link_wizard(self):
+        """Abre el wizard para generar un link de pago de Mercado Pago
+        con una o varias órdenes seleccionadas (la suma de todas ellas)."""
+        if not self:
+            raise UserError(_("Seleccione al menos una orden de venta."))
+        wizard = self.env['sale.order.mp.link.wizard'].create({
+            'sale_ids': [(6, 0, self.ids)],
+        })
+        return {
+            'name': _("Link de pago Mercado Pago"),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.mp.link.wizard',
+            'view_mode': 'form',
+            'res_id': wizard.id,
+            'target': 'new',
         }
 
 

@@ -14,7 +14,9 @@
         "views/sale_order_views.xml",
     # Para prueba de reportes:
     'views/sale_order_invoice_report.xml',
-    'views/report.xml'
+    'views/report.xml',
+    # Wizard de link de pago MP múltiple
+    "views/mp_link_wizard_views.xml",
     #
     ],
     "installable": True,

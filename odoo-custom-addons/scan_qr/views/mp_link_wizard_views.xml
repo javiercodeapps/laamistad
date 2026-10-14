@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Wizard para generar un link de pago de Mercado Pago con múltiples órdenes -->
+    <record id="view_mp_link_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.mp.link.wizard.form</field>
+        <field name="model">sale.order.mp.link.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Link de pago Mercado Pago">
+                <field name="state" invisible="1"/>
+                <group string="Órdenes incluidas en el link">
+                    <field name="sale_ids" nolabel="1" readonly="1">
+                        <tree create="false" delete="false">
+                            <field name="name"/>
+                            <field name="partner_id"/>
+                            <field name="date_order"/>
+                            <field name="state"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount_total"/>
+                        </tree>
+                    </field>
+                </group>
+                <group>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="amount_total"/>
+                </group>
+                <div class="alert alert-success" role="alert"
+                     attrs="{'invisible': [('state', '!=', 'linked')]}">
+                    Link de pago generado con la suma de las órdenes. Puede copiarlo y enviarlo al cliente:
+                </div>
+                <group attrs="{'invisible': [('state', '!=', 'linked')]}">
+                    <field name="mp_link" readonly="1" widget="CopyClipboardChar"/>
+                </group>
+                <footer>
+                    <button name="action_create_link" string="Generar Link" type="object"
+                            class="btn-primary"
+                            attrs="{'invisible': [('state', '=', 'linked')]}"/>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"
+                            attrs="{'invisible': [('state', '!=', 'linked')]}"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"
+                            attrs="{'invisible': [('state', '=', 'linked')]}"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mp_link_wizard" model="ir.actions.act_window">
+        <field name="name">Link de pago Mercado Pago</field>
+        <field name="res_model">sale.order.mp.link.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Botón en la lista de pedidos: seleccionar varias órdenes y generar un solo link -->
+    <record id="view_order_tree_mp_link_button" model="ir.ui.view">
+        <field name="name">sale.order.tree.mp.link.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <header>
+                    <button name="action_mp_link_wizard" type="object" string="Link MP Múltiple"
+                            class="oe_highlight"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

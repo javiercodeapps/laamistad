@@ -32,6 +32,8 @@
                     <field name="scale"/>
                     <field name="total_items"/>
                     <field name="caja_id"/>
+                    <field name="mp_link" readonly="1" widget="CopyClipboardChar"
+                           attrs="{'invisible': [('mp_link', '=', False)]}"/>
                 </group>
                 </page>
             </xpath>

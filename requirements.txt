@@ -31,3 +31,4 @@ pyzbar==0.1.9
 requests
 responses==0.25.7
 xlrd
+mercadopago
