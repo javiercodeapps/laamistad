@@ -573,10 +573,9 @@ class SaleOrderQR(models.Model):
         if not invoice and self.tag_ids and any(tag.name == 'CTACTE' for tag in self.tag_ids):
             #return self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b").report_action(self)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket")
-            new_report = report_invoice.copy({ 'report_name': 'custom_invoice_ticket.report_sale_order_ticket_pdf', })
-            result = new_report.report_action(self)
-           #if isinstance(result, dict):
-           #    result['close_on_report_done'] = True
+            result = report_invoice.report_action(self)
+            result['report_name'] = 'custom_invoice_ticket.report_sale_order_ticket_pdf'
+            result['report_file'] = 'custom_invoice_ticket.report_sale_order_ticket_pdf'
             return result
         if not invoice:
             raise UserError("No hay factura relacionada con este pedido de venta.")
@@ -590,8 +589,9 @@ class SaleOrderQR(models.Model):
             #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket").report_action(invoice)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
 
-        new_report = report_invoice.copy({ 'report_name': 'custom_invoice_ticket.report_invoice_ticket_pdf', })
-        result = new_report.report_action(self)
+        result = report_invoice.report_action(self)
+        result['report_name'] = 'custom_invoice_ticket.report_invoice_ticket_pdf'
+        result['report_file'] = 'custom_invoice_ticket.report_invoice_ticket_pdf'
         
         return result
 
