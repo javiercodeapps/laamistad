@@ -341,24 +341,102 @@ class CashBoxSale(models.Model):
             raise UserError('La clave ingresada es incorrecta')
 
     def action_closing_control(self):
+        _logger.warning("=" * 80)
+        _logger.warning("[CASHBOX] action_closing_control INICIO")
+        _logger.warning("[CASHBOX] self._name = %s | self.id = %s", self._name, self.id)
+        _logger.warning("[CASHBOX] cashbox_id = %s", self.cashbox_id)
+        _logger.warning("[CASHBOX] cashbox_id._name = %s",
+                    self.cashbox_id._name if self.cashbox_id else None)
+        _logger.warning("[CASHBOX] cashbox_id.id = %s",
+                    self.cashbox_id.id if self.cashbox_id else None)
         # Busco que no queden  ordenes en borrador
         borradores=self.env['sale.order'].search([('caja_id','=',self.id),('state','=','draft')])
         if borradores:
             raise UserError('No se puede continuar, hay ordenes pendientes de confirmar (borrador)')
 
-        # solo para los diarios de caja de quesan de Mercado Pago tengo que copiar el balence_end como balance_end_real
+      
+        # 2. Inspeccionar line_ids ANTES de tocar nada
         lines = self.cashbox_id.line_ids
-        lines.invalidate_recordset(['amount', 'balance_end'])
+        _logger.warning("[CASHBOX] line_ids._name = %s | cantidad = %s", lines._name, len(lines))
 
         for line in lines:
+            _logger.warning(
+                "[CASHBOX][ANTES] line.id=%s | journal='%s' | code='%s' | "
+                "balance_start=%s | balance_end=%s | balance_end_real=%s",
+                line.id,
+                line.journal_id.name,
+                line.journal_id.code,
+                line.balance_start,
+                line.balance_end,
+                line.balance_end_real,
+            )
+    
+        # 3. Invalidar caché del compute para leer valores frescos
+        _logger.warning("[CASHBOX] Invalidando cache de amount/balance_end...")
+        lines.invalidate_recordset(['amount', 'balance_end'])
+    
+        # 4. Recorrer y copiar
+        _logger.warning("[CASHBOX] Recorriendo lineas para copiar balance_end -> balance_end_real")
+        for line in lines:
             journal_name = (line.journal_id.name or '').upper()
-            if 'Mercado Pago' in journal_name or journal_name.strip() == 'MP':
+            journal_code = (line.journal_id.code or '').upper()
+            es_mp = (
+                'MERCADO PAGO' in journal_name
+                or 'MP' in journal_name
+                or 'MP' == journal_code
+                or 'MERCADOPAGO' in journal_code
+            )
+            _logger.warning(
+                "[CASHBOX] line.id=%s | journal='%s' | es_mp=%s | balance_end=%s",
+                line.id, line.journal_id.name, es_mp, line.balance_end,
+            )
+            if es_mp:
+                valor_antes = line.balance_end_real
                 line.balance_end_real = line.balance_end
-
+                _logger.warning(
+                    "[CASHBOX]   -> ASIGNADO balance_end_real: %s -> %s",
+                    valor_antes, line.balance_end_real,
+                )
+            else:
+                _logger.warning("[CASHBOX]   -> SKIP (no es Mercado Pago)")
+    
+        # 5. Forzar persistencia ANTES de super()
+        _logger.warning("[CASHBOX] Flush de balance_end_real...")
         lines.flush_recordset(['balance_end_real'])
-
+    
+        # 6. Verificar qué quedó en la DB antes de super()
+        self.env.cr.execute("""
+            SELECT id, balance_end_real
+            FROM account_cashbox_session_line
+            WHERE cashbox_session_id = %s
+            ORDER BY id
+        """, (self.cashbox_id.id,))
+        rows = self.env.cr.fetchall()
+        _logger.warning("[CASHBOX] ESTADO EN DB (antes de super): %s", rows)
+    
+        # 7. Llamar al super
+        _logger.warning("[CASHBOX] Llamando a super().action_closing_control()...")
         res = super().action_closing_control()
-
+        _logger.warning("[CASHBOX] super() retorno: %s", res)
+    
+        # 8. Verificar qué quedó en la DB DESPUÉS de super()
+        self.env.cr.execute("""
+            SELECT id, balance_end_real
+            FROM account_cashbox_session_line
+            WHERE cashbox_session_id = %s
+            ORDER BY id
+        """, (self.cashbox_id.id,))
+        rows = self.env.cr.fetchall()
+        _logger.warning("[CASHBOX] ESTADO EN DB (despues de super): %s", rows)
+    
+        for line in lines:
+            _logger.warning(
+                "[CASHBOX][DESPUES] line.id=%s | balance_end_real=%s",
+                line.id, line.balance_end_real,
+            )
+    
+        _logger.warning("[CASHBOX] action_closing_control FIN")
+        _logger.warning("=" * 80)
         return res
 
     def action_account_cashbox_session_close_auth(self):
