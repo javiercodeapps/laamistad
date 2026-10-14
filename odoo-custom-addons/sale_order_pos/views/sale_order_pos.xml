@@ -5,8 +5,8 @@
     <field name="inherit_id" ref="sale.view_order_form" />
     <field name="arch" type="xml">
       <data>
+        <field name="is_admin" invisible="True" />
         <field name="partner_shipping_id" position="before">
-          <field name="is_admin" invisible="True" />
           <field name="validity_date"
             attrs="{'invisible': [('state', 'in', ['sale', 'done'])]}" />
           <div class="o_td_label" groups="base.group_no_one"
