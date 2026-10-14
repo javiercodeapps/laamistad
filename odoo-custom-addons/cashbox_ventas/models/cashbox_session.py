@@ -345,11 +345,19 @@ class CashBoxSale(models.Model):
         borradores=self.env['sale.order'].search([('caja_id','=',self.id),('state','=','draft')])
         if borradores:
             raise UserError('No se puede continuar, hay ordenes pendientes de confirmar (borrador)')
-        res = super().action_closing_control()
+
         # solo para los diarios de caja de quesan de Mercado Pago tengo que copiar el balence_end como balance_end_real
-        for line in self.cashbox_id.line_ids:
-            if 'Mercado Pago' in line.journal_id.name or 'MP' in line.journal_id.name:
-                line.balance_end_real = line.balance_end    
+        lines = self.cashbox_id.line_ids
+        lines.invalidate_recordset(['amount', 'balance_end'])
+
+        for line in lines:
+            journal_name = (line.journal_id.name or '').upper()
+            if 'Mercado Pago' in journal_name or journal_name.strip() == 'MP':
+                line.balance_end_real = line.balance_end
+
+        lines.flush_recordset(['balance_end_real'])
+
+        res = super().action_closing_control()
 
         return res
 
