@@ -160,7 +160,7 @@ class CashBoxSale(models.Model):
                                     
             # Busco todas las ventas de cuentas corrientes pendientes de cobro a la fecha de aperturura si la caja anteriorio no tiene un RESUEMENCTACTE, sino busco el resumen de la caja anterior y lo agrego al cierre de la caja actual
             # Busco resumen anterior
-            last_session = self.env['account.cashbox.session'].sudo().search([('cashbox_id', '=', rec.cashbox_id.id), ('state', '=', 'closed')], order="closing_date desc", limit=1)
+            last_session = self.env['account.cashbox.session'].sudo().search([('cashbox_id', '=', self.cashbox_id.id), ('state', '=', 'closed')], order="closing_date desc", limit=1)
             resumen = False
             if last_session:
                 # Con esta session busco el detalle de la caja anterior y lo agrego al cierre de la caja actual
