@@ -424,6 +424,118 @@ class SaleOrderQR(models.Model):
             'target': 'new',
         }
 
+    def pay_mp_link(self, data):
+        """Procesa el retorno de éxito de un link de pago de Mercado Pago.
+
+        Verifica el pago contra la API de MP, factura las órdenes del
+        external_reference (una o varias separadas por coma) y las paga con
+        el diario de pago del tipo de pedido. Cuando quedan pagadas avisa en
+        el canal '<código de la compañía> Pagos link'."""
+        data = data or {}
+        external_reference = data.get('external_reference') or ''
+        payment_id = data.get('payment_id') or data.get('collection_id')
+        names = [n.strip() for n in external_reference.split(',') if n.strip()]
+        if not names:
+            _logger.warning('MP success sin external_reference: %s' % data)
+            return False
+        orders = self.env['sale.order'].sudo().search([('name', 'in', names)])
+        if not orders:
+            _logger.warning('MP success: no se encontraron órdenes para %s' % external_reference)
+            return False
+        # Verifico el estado real del pago contra la API de Mercado Pago
+        # (no confío en los parámetros de la URL, que pueden ser falsificados)
+        status = data.get('status')
+        provider = self.env['payment_mercadopago_point.mercadopago'].sudo().search([
+            ('company_id', '=', orders[:1].company_id.id)], limit=1)
+        if payment_id and provider:
+            try:
+                status = provider.get_payment_status(orders[:1], payment_id)
+            except Exception:
+                _logger.exception('MP success: no se pudo verificar el pago %s' % payment_id)
+        _logger.info('MP success: reference=%s payment_id=%s status=%s' % (external_reference, payment_id, status))
+        if status != 'approved':
+            orders.message_post(body='Mercado Pago: el link devolvió el estado %s (pago %s). No se facturó.' % (status, payment_id))
+            return False
+        pagadas = self.env['sale.order'].sudo()
+        for order in orders:
+            try:
+                # savepoint por orden: si una falla, las demás se procesan igual
+                with self.env.cr.savepoint():
+                    if order._mp_link_invoice_and_pay():
+                        pagadas |= order
+            except Exception:
+                _logger.exception('MP success: error al facturar/pagar la orden %s' % order.name)
+                order.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise la orden.')
+        if pagadas:
+            pagadas._mp_link_notify_payment(payment_id)
+        return True
+
+    def _mp_link_invoices(self):
+        """Facturas de venta no canceladas de la orden."""
+        return self.invoice_ids.filtered(lambda i: i.move_type == 'out_invoice' and i.state != 'cancel')
+
+    def _mp_link_invoice_and_pay(self):
+        """Factura la orden y paga la factura con el diario de pago del tipo
+        de pedido. El diario de facturación lo toma del tipo de pedido
+        (sale_order_type lo aplica en _prepare_invoice).
+        Retorna True solo si en esta llamada se pagaron facturas."""
+        self.ensure_one()
+        # El pago del link confirma la venta: si por algún motivo la orden
+        # sigue en borrador o enviada, la confirmo antes de facturar
+        if self.state in ('draft', 'sent'):
+            self.action_confirm()
+        invoices = self._mp_link_invoices()
+        if not invoices:
+            self._create_invoices()
+            invoices = self._mp_link_invoices()
+        if not invoices:
+            raise UserError(_("No se pudieron crear las facturas de la orden %s.") % self.name)
+        pay_journal = self.type_id.payment_journal_id
+        if not pay_journal:
+            raise UserError(_("El tipo de pedido %s de la orden %s no tiene configurado el diario de pago.") % (self.type_id.display_name, self.name))
+        pagada = False
+        for invoice in invoices:
+            if invoice.state == 'draft':
+                invoice.action_post()
+            if invoice.payment_state in ['not_paid', 'partial']:
+                monto = invoice.amount_residual if invoice.payment_state == 'partial' else invoice.amount_total
+                payment_group = self.pay_multiple(invoice, pay_journal, monto)
+                if payment_group:
+                    self.reconciliar_venta(invoice, [payment_group])
+                    pagada = True
+                    self.message_post(body='Pago del link de Mercado Pago registrado en la factura %s (diario %s).' % (invoice.name, pay_journal.display_name))
+        return pagada
+
+    def _mp_link_notify_payment(self, payment_id=None):
+        """Avisa en el canal '<código de la compañía> Pagos link' que se
+        confirmó el pago por link de Mercado Pago de estas órdenes."""
+        for company in self.mapped('company_id'):
+            orders = self.filtered(lambda o: o.company_id == company)
+            channel_name = '%s Pagos link' % (company.code or company.name)
+            channel = self.env['mail.channel'].sudo().search([('name', '=', channel_name)], limit=1)
+            if not channel:
+                _logger.warning('No se encontró el canal de notificación "%s" para avisar el pago del link.' % channel_name)
+                continue
+            invoices = orders.mapped('invoice_ids').filtered(lambda i: i.move_type == 'out_invoice' and i.state != 'cancel')
+            moneda = orders[:1].currency_id
+            body = (
+                '<h4>Pago confirmado por link de Mercado Pago</h4>'
+                '<ul>'
+                '<li><b>Órdenes:</b> %s</li>'
+                '<li><b>Cliente:</b> %s</li>'
+                '<li><b>Importe:</b> %s</li>'
+                '<li><b>Facturas:</b> %s</li>'
+                '<li><b>Pago MP:</b> %s</li>'
+                '</ul>'
+            ) % (
+                ', '.join(orders.mapped('name')),
+                orders[:1].partner_id.display_name,
+                moneda.format(sum(orders.mapped('amount_total'))),
+                ', '.join(invoices.mapped('name')) or '-',
+                payment_id or '-',
+            )
+            channel.sudo().message_post(body=body, message_type='comment', subtype_xmlid='mail.mt_comment')
+
 
 #####################
 ### IMPRIMIR LA FACTURA

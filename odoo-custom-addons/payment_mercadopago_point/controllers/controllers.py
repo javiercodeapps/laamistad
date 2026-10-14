@@ -19,11 +19,17 @@ class MercadopagoPointPaymemnt(http.Controller):
             "mercado_pago_qr", data
         )
         return ""
+
     @http.route("/mercadopago_point_payment/success", auth="public", type="http")
-    def ipn(self, **kw):
-        data = kw
-        _logger.info('queue %s' % data)
-        request.env["sale.order"].sudo().pay_mp_link(data)
+    def payment_success(self, **kw):
+        _logger.info('queue %s' % kw)
+        try:
+            request.env["sale.order"].sudo().pay_mp_link(kw)
+        except Exception:
+            # El pago ya está aprobado en Mercado Pago, no freno la página de
+            # éxito: el detalle del error queda en el log y en el chatter.
+            _logger.exception('Error al procesar el pago del link de Mercado Pago')
+            request.env.cr.rollback()
         message = """
             <html>
             <head><title>Pago exitoso</title></head>
@@ -33,4 +39,4 @@ class MercadopagoPointPaymemnt(http.Controller):
             </body>
             </html>
             """
-        return message  
+        return message
