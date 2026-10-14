@@ -124,6 +124,8 @@ class CashBoxSale(models.Model):
                                     if 'DESCUENTO' in line.product_id.name:
                                         _logger.info('DESCUENTO %s %s' % (so.order_id.name,line.price_total))
                                         # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                        if pay_name not in totales:
+                                            totales[pay_name]=0
                                         totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / so.order_id.amount_total)
                                         k = '%s %s' % (pay_name,line.product_id.name)
                                         if k not in descuentos:
