@@ -166,7 +166,7 @@ class CashBoxSale(models.Model):
                 # Con esta session busco el detalle de la caja anterior y lo agrego al cierre de la caja actual
                 # y sumar los totales de CTACTERESUMEN + VENTAS CTACTE + VENTAS CTACTE Factura - CTACTE 
                 for line in last_session.resumen_ids:
-                    _logger.info('LINEA %s %s %s' % (line.type_pay_id,line.type_id,line.amount))
+                    _logger.info('LINEA %s %s %s %s' % (line.type_pay_id,line.type_id,line.amount,resumen))
                     ctactereumen = 0
                     if line.type_pay_id == 'VENTAS' and 'CTACTE' in line.type_id:
                         ctactereumen += line.amount
