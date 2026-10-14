@@ -162,12 +162,12 @@ class CashBoxSale(models.Model):
             # Busco resumen anterior
             last_session = self.env['account.cashbox.session'].sudo().search([('cashbox_id', '=', self.cashbox_id.id), ('state', '=', 'closed')], order="closing_date desc", limit=1)
             resumen = False
+            ctactereumen = 0
             if last_session:
                 # Con esta session busco el detalle de la caja anterior y lo agrego al cierre de la caja actual
                 # y sumar los totales de CTACTERESUMEN + VENTAS CTACTE + VENTAS CTACTE Factura - CTACTE 
                 for line in last_session.resumen_ids:
                     _logger.info('LINEA %s %s %s %s' % (line.type_pay_id,line.type_id,line.amount,resumen))
-                    ctactereumen = 0
                     if line.type_pay_id == 'VENTAS' and 'CTACTE' in line.type_id:
                         ctactereumen += line.amount
                     if 'CTACTE' in line.type_pay_id:
