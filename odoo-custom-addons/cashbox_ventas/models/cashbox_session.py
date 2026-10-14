@@ -75,6 +75,8 @@ class CashBoxSale(models.Model):
             gcantidad = {}
             ttotales = {}
             tcantidad = {}
+            descuentos = {}
+            descuentosc= {}
             self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)]).unlink()
             # Armar resumen de gasto de la caja y detectar pagos de pedidos de otros dias
             for payids in self.payment_ids:
@@ -218,8 +220,6 @@ class CashBoxSale(models.Model):
                 self.env['account.cashbox.sale.line'].create({'type_id':'%s-%s' %(type_orden,t),'count':tcantidad[t],'amount':ttotales[t],'cashbox_id':self.id,'type_pay_id':'RECAUDACION'})
             totales = {}
             cantidad = {}
-            descuentos = {}
-            descuentosc= {}
             # Busco las ventas
             if self.closing_date:
                 fecha_cierre =  self.closing_date + timedelta(hours=6)
