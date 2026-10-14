@@ -125,6 +125,6 @@
         </t>
     </template>
     <template id="report_sale_order_ticket_b_pdf">
-        <t t-call="report_sale_order_ticket_b"/>
+        <t t-call="custom_invoice_ticket.report_sale_order_ticket_b"/>
     </template>
 </odoo>
