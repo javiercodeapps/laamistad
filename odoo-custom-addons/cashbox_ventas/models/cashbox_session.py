@@ -156,7 +156,7 @@ class CashBoxSale(models.Model):
                                                               'amount':totales[t],
                                                               'cashbox_id':self.id,
                                                               'type_pay_id':'CTACTE',
-                                                              'ventas_ids':[(6,0,ids[t])]})
+                                                              'ventas_ids':[(6,0,ids.get(t,[]))]})
                                     
             # Busco todas las ventas de cuentas corrientes pendientes de cobro a la fecha de aperturura si la caja anteriorio no tiene un RESUEMENCTACTE, sino busco el resumen de la caja anterior y lo agrego al cierre de la caja actual
             # Busco resumen anterior
