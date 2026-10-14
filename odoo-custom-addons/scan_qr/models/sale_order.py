@@ -588,7 +588,7 @@ class SaleOrderQR(models.Model):
             #return self.env.ref("custom_invoice_ticket.action_report_invoice_ticket").report_action(invoice)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
 
-        result = report_invoice.report_action(self)
+        result = report_invoice.report_action(invoice)
         result['name'] = 'Sale Invoice PDF'
         
         return result
