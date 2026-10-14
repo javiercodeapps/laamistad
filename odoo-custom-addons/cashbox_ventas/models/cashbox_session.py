@@ -327,7 +327,7 @@ class CashBoxSale(models.Model):
                     totales[type_name]+=v.amount_total
                     cantidad[type_name]+=1
                     ids[type_name].append(v.id)
-                    _logger.info(type_name,v.id)
+                    _logger.info('%s - %s' % (type_name, v.id))
             v = []
 
         self.resumen_ids = self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)])
