@@ -175,7 +175,7 @@ class CashBoxSale(models.Model):
                             ctactereumen += line.amount
                         else:
                             ctactereumen -= line.amount
-                if not reumen:
+                if not resumen:
                     # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
                     ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
                     for v in ventas:
