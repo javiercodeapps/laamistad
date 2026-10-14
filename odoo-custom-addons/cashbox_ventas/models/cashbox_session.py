@@ -358,7 +358,7 @@ class CashBoxSale(models.Model):
 
       
         # 2. Inspeccionar line_ids ANTES de tocar nada
-        lines = self.cashbox_id.line_ids
+        lines = self.line_ids
         _logger.warning("[CASHBOX] line_ids._name = %s | cantidad = %s", lines._name, len(lines))
 
         for line in lines:
