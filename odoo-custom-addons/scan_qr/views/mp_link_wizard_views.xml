@@ -66,4 +66,19 @@
         </field>
     </record>
 
+    <!-- Ídem en la lista de cotizaciones: los pedidos 'sent' (enviados) se ven en Cotizaciones -->
+    <record id="view_quotation_tree_mp_link_button" model="ir.ui.view">
+        <field name="name">sale.order.quotation.tree.mp.link.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <header>
+                    <button name="action_mp_link_wizard" type="object" string="Link MP Múltiple"
+                            class="oe_highlight"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>
