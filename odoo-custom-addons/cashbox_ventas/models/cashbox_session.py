@@ -352,7 +352,6 @@ class CashBoxSale(models.Model):
         # 2. Inspeccionar line_ids ANTES de tocar nada
         lines = self.line_ids
 
-        for line in lines:
     
         # 3. Invalidar caché del compute para leer valores frescos
         lines.invalidate_recordset(['amount', 'balance_end'])
