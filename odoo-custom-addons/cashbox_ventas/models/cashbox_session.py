@@ -166,8 +166,9 @@ class CashBoxSale(models.Model):
                 # Con esta session busco el detalle de la caja anterior y lo agrego al cierre de la caja actual
                 # y sumar los totales de CTACTERESUMEN + VENTAS CTACTE + VENTAS CTACTE Factura - CTACTE 
                 for line in last_session.resumen_ids:
+                    _logger.info('LINEA %s %s %s' % (line.type_pay_id,line.type_id,line.amount))
                     ctactereumen = 0
-                    if 'CTACTE' in line.type_id:
+                    if line.type_pay_id == 'VENTAS' and 'CTACTE' in line.type_id:
                         ctactereumen += line.amount
                     if 'CTACTE' in line.type_pay_id:
                         if 'RESUMEN' in line.type_id:
@@ -175,19 +176,19 @@ class CashBoxSale(models.Model):
                             ctactereumen += line.amount
                         else:
                             ctactereumen -= line.amount
-                if not resumen:
-                    # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
-                    ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
-                    for v in ventas:
-                        if 'CTACTE' in v.type_id.name:
-                            ctactereumen += v.amount_total
+            if not resumen:
+                # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
+                ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
+                for v in ventas:
+                    if 'CTACTE' in v.type_id.name:
+                        ctactereumen += v.amount_total
 
-                self.env['account.cashbox.sale.line'].create({'type_id':'RESUMEN',
-                                                              'count':0,
-                                                              'amount':ctactereumen,
-                                                              'cashbox_id':self.id,
-                                                              'type_pay_id':'CTACTE',
-                                                              'ventas_ids':[]})
+            self.env['account.cashbox.sale.line'].create({'type_id':'RESUMEN',
+                                                          'count':0,
+                                                          'amount':ctactereumen,
+                                                          'cashbox_id':self.id,
+                                                          'type_pay_id':'CTACTE',
+                                                          'ventas_ids':[]})
             for t in cobros:
                 type_orden = '1-'
                 for o in orden:
