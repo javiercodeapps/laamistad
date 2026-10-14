@@ -249,16 +249,16 @@ class CashBoxSale(models.Model):
                                 cantidad[pay_name]+=1
                                 ids[pay_name].append(v.id)
                                 for line in v.order_line:
-                                if 'DESCUENTO' in line.product_id.name:
-                                    _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
-                                    # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
-                                    totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / v.amount_total)
-                                    k = '%s %s' % (pay_name,line.product_id.name)
-                                    if k not in descuentos:
-                                        descuentos[k] = 0
-                                        descuentosc[k] = 0
-                                    descuentos[k] += line.price_total  * (pay.amount_total / v.amount_total)
-                                    descuentosc[k]+=1
+                                    if 'DESCUENTO' in line.product_id.name:
+                                        _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
+                                        # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                        totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / v.amount_total)
+                                        k = '%s %s' % (pay_name,line.product_id.name)
+                                        if k not in descuentos:
+                                            descuentos[k] = 0
+                                            descuentosc[k] = 0
+                                        descuentos[k] += line.price_total  * (pay.amount_total / v.amount_total)
+                                        descuentosc[k]+=1
                     else:
                         totales[type_name]+=v.amount_total
                         cantidad[type_name]+=1
