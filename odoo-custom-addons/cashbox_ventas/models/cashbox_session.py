@@ -152,7 +152,7 @@ class CashBoxSale(models.Model):
                         type_orden='%s' % orden[o]
 
                 self.env['account.cashbox.sale.line'].create({'type_id':'%s-%s' % (type_orden,t),
-                                                              'count':cantidad[t],
+                                                              'count':cantidad.get(t,0),
                                                               'amount':totales[t],
                                                               'cashbox_id':self.id,
                                                               'type_pay_id':'CTACTE',
