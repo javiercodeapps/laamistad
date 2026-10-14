@@ -349,7 +349,7 @@ class CashBoxSale(models.Model):
         # solo para los diarios de caja de quesan de Mercado Pago tengo que copiar el balence_end como balance_end_real
         for line in self.cashbox_id.line_ids:
             if 'Mercado Pago' in line.journal_id.name or 'MP' in line.journal_id.name:
-                self.balance_end_real = self.balance_end    
+                line.balance_end_real = line.balance_end    
 
         return res
 
