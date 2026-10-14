@@ -13,12 +13,21 @@ class SaleOrderMpLinkWizard(models.TransientModel):
     _description = 'Wizard para generar link de pago Mercado Pago con múltiples órdenes'
 
     sale_ids = fields.Many2many('sale.order', string='Órdenes de venta',
-                                domain=[('state', '=', 'sent')], required=True)
+                                domain=[('state', '=', 'sent')],
+                                default=lambda self: self._default_sale_ids())
     currency_id = fields.Many2one('res.currency', string='Moneda', compute='_compute_amounts')
     amount_total = fields.Monetary(string='Total', compute='_compute_amounts', currency_field='currency_id')
     state = fields.Selection([('draft', 'Borrador'), ('linked', 'Link generado')],
                              string='Estado', default='draft', required=True)
     mp_link = fields.Char(string='Link de pago', readonly=True, copy=False)
+
+    @api.model
+    def _default_sale_ids(self):
+        """Carga las órdenes seleccionadas en la lista (active_ids del contexto)."""
+        ctx = self.env.context
+        if ctx.get('active_model') == 'sale.order' and ctx.get('active_ids'):
+            return [(6, 0, ctx['active_ids'])]
+        return []
 
     @api.depends('sale_ids', 'sale_ids.amount_total')
     def _compute_amounts(self):

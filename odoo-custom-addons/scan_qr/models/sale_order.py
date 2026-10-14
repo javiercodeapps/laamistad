@@ -409,19 +409,17 @@ class SaleOrderQR(models.Model):
 
     def action_mp_link_wizard(self):
         """Abre el wizard para generar un link de pago de Mercado Pago
-        con una o varias órdenes seleccionadas (la suma de todas ellas)."""
+        con una o varias órdenes seleccionadas (la suma de todas ellas).
+        Las órdenes se pasan por contexto y el wizard las toma por default."""
         if not self:
             raise UserError(_("Seleccione al menos una orden de venta."))
-        wizard = self.env['sale.order.mp.link.wizard'].create({
-            'sale_ids': [(6, 0, self.ids)],
-        })
         return {
             'name': _("Link de pago Mercado Pago"),
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order.mp.link.wizard',
             'view_mode': 'form',
-            'res_id': wizard.id,
             'target': 'new',
+            'context': {'active_model': 'sale.order', 'active_ids': self.ids},
         }
 
     def pay_mp_link(self, data):
