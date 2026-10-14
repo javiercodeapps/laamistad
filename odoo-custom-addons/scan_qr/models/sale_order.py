@@ -574,8 +574,7 @@ class SaleOrderQR(models.Model):
             #return self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket_b").report_action(self)
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_sale_order_ticket")
             result = report_invoice.report_action(self)
-            result['report_name'] = 'custom_invoice_ticket.report_sale_order_ticket_pdf'
-            result['report_file'] = 'custom_invoice_ticket.report_sale_order_ticket_pdf'
+            result['name'] = 'Sale Order PDF'
             return result
         if not invoice:
             raise UserError("No hay factura relacionada con este pedido de venta.")
@@ -590,8 +589,7 @@ class SaleOrderQR(models.Model):
             report_invoice = self.env.ref("custom_invoice_ticket.action_report_invoice_ticket")
 
         result = report_invoice.report_action(self)
-        result['report_name'] = 'custom_invoice_ticket.report_invoice_ticket_pdf'
-        result['report_file'] = 'custom_invoice_ticket.report_invoice_ticket_pdf'
+        result['name'] = 'Sale Invoice PDF'
         
         return result
 
