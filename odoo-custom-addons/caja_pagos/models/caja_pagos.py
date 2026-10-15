@@ -115,12 +115,10 @@ class CajaPagos(models.Model):
             payment_type = 'outbound'
             if self.monto <= 0 and self.user_has_groups('account_cashbox.cashbox_view_access'):
                 payment_type = 'inbound'
-                self.monto = abs(self.monto)
             payment_lines = [{'payment_type':payment_type,
-                'amount':self.monto, 
+                'amount':abs(self.monto), 
                 'ref': self.name,
                 'journal_id':self.origen.id,
-                #'cashbox_session_id': caja[0].id if caja else '',
                 'cashbox_session_id': self.cashbox_session.id,
                 }]
             paygroup = {'partner_id' : self.tipo.partner_id.id,
@@ -135,10 +133,9 @@ class CajaPagos(models.Model):
             self.payment_group = p.id
             return p.id
         if self.tipo.tipo_pago == 'Transferencia':
-            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':self.monto,'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
+            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':abs(self.monto),'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
             if self.monto <= 0 and self.user_has_groups('account_cashbox.cashbox_view_access'):
-                context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'inbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':self.monto,'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
-                self.monto = abs(self.monto)
+                context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'inbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':abs(self.monto),'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
             action =  dict(
             name        = 'Transferencia',
             target      = 'new',
