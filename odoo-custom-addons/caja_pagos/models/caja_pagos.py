@@ -102,22 +102,21 @@ class CajaPagos(models.Model):
             record.origen = self.tipo.origen
             record.destino = self.tipo.destino
 
-  # @api.model
-  # def create(self, vals):
-  #     p = super(CajaPagos,self).create(vals)
-  #     _logger.info('GENERAR PAGO %s' % p)
-  #     p.generar()
-  #     return p
-
     def generar(self):
         _logger.info('PAGO %s' % self.tipo.tipo_pago)
         caja = self.env['account.cashbox.session'].search([('state','=','opened')])
         if not caja:
             raise UserError('No se encontro ninguna caja abierta')
         self.cashbox_session = caja[0]
+        if self.monto <= 0 and not self.user_has_groups('account_cashbox.cashbox_view_access'):
+            raise UserError('El monto debe ser mayor a cero')
         if self.tipo.tipo_pago == 'Pago':
             self.state = 'done'
-            payment_lines = [{'payment_type':'outbound',
+            payment_type = 'outbound'
+            if self.monto <= 0 and self.user_has_groups('account_cashbox.cashbox_view_access'):
+                payment_type = 'inbound'
+                self.monto = abs(self.monto)
+            payment_lines = [{'payment_type':payment_type,
                 'amount':self.monto, 
                 'ref': self.name,
                 'journal_id':self.origen.id,
@@ -136,13 +135,17 @@ class CajaPagos(models.Model):
             self.payment_group = p.id
             return p.id
         if self.tipo.tipo_pago == 'Transferencia':
+            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':self.monto,'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
+            if self.monto <= 0 and self.user_has_groups('account_cashbox.cashbox_view_access'):
+                context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'inbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':self.monto,'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
+                self.monto = abs(self.monto)
             action =  dict(
             name        = 'Transferencia',
             target      = 'new',
             view_mode   = 'form',
             res_model   = 'account.payment',
             type        = 'ir.actions.act_window',
-            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':self.monto,'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
+            context     = context,
             domain      = [('is_internal_transfer', '=', 'transfer')],)
             _logger.info('%s' % action)
             return action
