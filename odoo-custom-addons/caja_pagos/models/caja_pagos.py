@@ -133,7 +133,6 @@ class CajaPagos(models.Model):
             self.payment_group = p.id
             return p.id
         if self.tipo.tipo_pago == 'Transferencia':
-            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':abs(self.monto),'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
             if self.monto <= 0 and self.user_has_groups('account_cashbox.cashbox_view_access'):
                 context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'inbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':abs(self.monto),'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
             action =  dict(
@@ -142,7 +141,7 @@ class CajaPagos(models.Model):
             view_mode   = 'form',
             res_model   = 'account.payment',
             type        = 'ir.actions.act_window',
-            context     = context,
+            context     = {'form_view_ref': 'account_payment_group.view_account_payment_form2','default_payment_type': 'outbound','default_is_internal_transfer': True,'default_move_journal_types': ('bank', 'cash'),'default_ref':self.name,'default_amount':abs(self.monto),'default_destination_journal_id':self.destino.id,'default_journal_id':self.origen.id,'caja_pago_id':self.id,'default_cashbox_session_id':self.cashbox_session.id,'default_available_journal_ids':[self.origen.id]},
             domain      = [('is_internal_transfer', '=', 'transfer')],)
             _logger.info('%s' % action)
             return action
