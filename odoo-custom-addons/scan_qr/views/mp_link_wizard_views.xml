@@ -9,7 +9,7 @@
             <form string="Link de pago Mercado Pago">
                 <field name="state" invisible="1"/>
                 <separator string="Órdenes incluidas en el link"/>
-                <field name="sale_ids" nolabel="1" readonly="1">
+                <field name="sale_ids" nolabel="1" readonly="1" force_save="1">
                     <tree create="false" delete="false">
                         <field name="name"/>
                         <field name="partner_id"/>
