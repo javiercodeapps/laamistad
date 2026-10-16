@@ -6,7 +6,7 @@
     "license": "LGPL-3",
     "category": "Sales",
     "version": "15.0.1.0.0",
-    "depends": ["base","sale","account","account_payment_group"],
+    "depends": ["base","sale","account","account_payment_group","scan_qr"],
     "data": [
         "security/ir.model.access.csv",
         "views/control_caja.xml",

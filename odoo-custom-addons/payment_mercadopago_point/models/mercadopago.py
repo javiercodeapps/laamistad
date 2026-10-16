@@ -186,7 +186,8 @@ def calcular_fecha_expiracion(creacion_dt=None, hora_limite=23, horas_duracion=3
     """
     Calcula la fecha de expiración para un link de pago.
     - Si creacion_dt es None, usa la hora actual.
-    - La expiración será: creacion + horas_duracion, pero sin superar las hora_limite (21:00) del mismo día.
+    - La expiración será: creacion + horas_duracion, pero sin superar las hora_limite (23:00) del mismo día
+      (si ya pasó esa hora, se usa el plazo completo para no generar un link vencido).
     - Retorna un string ISO 8601 con zona horaria (offset) para Mercado Pago.
     """
     # 1. Obtener la fecha/hora actual con zona horaria (ej. 'America/Asuncion' o la de la empresa)
@@ -202,11 +203,16 @@ def calcular_fecha_expiracion(creacion_dt=None, hora_limite=23, horas_duracion=3
     # 2. Calcular fecha de expiración por tiempo (3 horas después)
     expiracion_por_tiempo = ahora + timedelta(hours=horas_duracion)
 
-    # 3. Calcular el límite de hoy a las 21:00
+    # 3. Calcular el límite de hoy (por defecto 23:00)
     limite_hoy = ahora.replace(hour=hora_limite, minute=0, second=0, microsecond=0)
 
-    # 4. Tomar el mínimo entre ambos (el que ocurra primero)
-    fecha_expiracion = min(expiracion_por_tiempo, limite_hoy)
+    # 4. Tomar el mínimo entre ambos, pero solo si el límite del día todavía
+    #    no pasó. Si ya pasó (ej. se genera el link a las 23:15), aplicar ese
+    #    tope daría una fecha vencida; en ese caso usamos el plazo normal.
+    if limite_hoy > ahora:
+        fecha_expiracion = min(expiracion_por_tiempo, limite_hoy)
+    else:
+        fecha_expiracion = expiracion_por_tiempo
 
     # 5. Validar que la fecha de expiración sea mayor que la actual (si no, el link ya expiró)
     if fecha_expiracion <= ahora:

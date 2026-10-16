@@ -6,7 +6,7 @@
     "license": "LGPL-3",
     "category": "Sales",
     "version": "15.0.1.0.0",
-    "depends": ["sale","account","account_cashbox","web_widget_mpld3_chart"], 
+    "depends": ["sale","account","account_cashbox","web_widget_mpld3_chart","scan_qr"], 
     "data": [
         "security/ir.model.access.csv",
         "views/cashbox_session.xml",

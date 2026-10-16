@@ -383,7 +383,7 @@ class CashBoxSale(models.Model):
         return res
 
     def action_account_cashbox_session_close_auth(self):
-        popup = self.env['paimon.popup.confirmation']
+        popup = self.env['scan_qr.popup.confirmation']
         action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
         return action
 

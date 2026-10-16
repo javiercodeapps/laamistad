@@ -65,7 +65,7 @@ class CajaPagos(models.Model):
                 if paired_payment_id:
                     paired_payment_id.action_draft()
                     paired_payment_id.action_cancel()
-        popup = self.env['paimon.popup.confirmation']
+        popup = self.env['scan_qr.popup.confirmation']
         action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
         return action
 
@@ -74,7 +74,7 @@ class CajaPagos(models.Model):
             self.is_admin = False
             return True
         self.state = 'cancel'
-        popup = self.env['paimon.popup.confirmation']
+        popup = self.env['scan_qr.popup.confirmation']
         action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
         return action
 

@@ -80,7 +80,7 @@ class SaleOrderQR(models.Model):
         if self.is_admin == True:
             self.is_admin = False
             return True
-        popup = self.env['paimon.popup.confirmation']
+        popup = self.env['scan_qr.popup.confirmation']
         action = popup.show_aut(self, 'Ingrese la clave de autorizacion', 'autorizo')
         return action
 
