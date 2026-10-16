@@ -170,12 +170,12 @@ class SaleOrderQR(models.Model):
             payment_type = 'Multiple'
         label = context.get('label')
         if payment_type == 'MP':
-            popup = self.env['paimon.popup.confirmation']
+            popup = self.env['scan_qr.popup.confirmation']
             action = popup.show_mp(self, 'Selccion el metodo a utilizar', 'action_confirm_type')
             return action
 
         if payment_type == 'Multiple' and not efectivo:
-            popup = self.env['paimon.popup.confirmation']
+            popup = self.env['scan_qr.popup.confirmation']
             action = popup.show_efectivo(self, 'Ingreso el monto en efectivo y seleccione el otro metodo de pago <h3>Total: %s</h3>' % self.amount_total, 'action_confirm_type')
             return action
 
