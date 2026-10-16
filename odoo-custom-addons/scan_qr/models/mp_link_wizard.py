@@ -13,7 +13,7 @@ class SaleOrderMpLinkWizard(models.TransientModel):
     _description = 'Wizard para generar link de pago Mercado Pago con múltiples órdenes'
 
     sale_ids = fields.Many2many('sale.order', string='Órdenes de venta',
-                                domain=[('state', '=', 'sent')],
+                                domain=[('state', 'in', ['sent', 'sale'])],
                                 default=lambda self: self._default_sale_ids())
     currency_id = fields.Many2one('res.currency', string='Moneda', compute='_compute_amounts')
     amount_total = fields.Monetary(string='Total', compute='_compute_amounts', currency_field='currency_id')
@@ -35,35 +35,37 @@ class SaleOrderMpLinkWizard(models.TransientModel):
             wizard.currency_id = wizard.sale_ids[:1].currency_id
             wizard.amount_total = sum(wizard.sale_ids.mapped('amount_total'))
 
-    def _is_consumidor_final(self, partner):
-        """Detecta clientes Consumidor Final (AFIP responsable tipo 5 o por nombre)."""
-        return 'Consumidor Final' in (partner.name or '')
+    def _get_orders(self):
+        """Devuelve las órdenes del wizard.
 
-    def _validate_orders(self):
+        `sale_ids` es un campo de solo lectura en la vista; el cliente web puede
+        guardar vacío su valor al crear el wizard en el diálogo. Por eso, si llegó
+        vacío, se recuperan las órdenes del contexto (`active_ids` del action, que
+        el botón conserva al llamar al método).
+        """
         self.ensure_one()
         orders = self.sale_ids
         if not orders:
-            raise UserError(_("Debe seleccionar al menos una orden de venta."))
-        not_sent = orders.filtered(lambda o: o.state != 'sent')
-        if not_sent:
-            raise UserError(_("Solo se pueden agrupar órdenes enviadas (estado 'Sent'). "
-                              "Revise: %s") % ", ".join(not_sent.mapped('name')))
-        if len(orders.partner_id) > 1:
-            raise UserError(_("Todas las órdenes deben ser del mismo cliente. "
-                              "Clientes encontrados: %s") % ", ".join(orders.partner_id.mapped('display_name')))
-        partner = orders.partner_id
-        if self._is_consumidor_final(partner):
-            raise UserError(_("No se puede generar un link de pago para un cliente Consumidor Final (%s). "
-                              "Debe seleccionar un cliente con nombre.") % partner.display_name)
-        if len(orders.currency_id) > 1:
-            raise UserError(_("Todas las órdenes deben tener la misma moneda."))
-        if len(orders.company_id) > 1:
-            raise UserError(_("Todas las órdenes deben pertenecer a la misma compañía."))
+            ctx = self.env.context
+            if ctx.get('active_model') == 'sale.order' and ctx.get('active_ids'):
+                orders = self.env['sale.order'].browse(ctx['active_ids'])
         return orders
+
+    def _validate_orders(self):
+        self.ensure_one()
+        return self._get_orders()._mp_link_validate_orders()
 
     def action_create_link(self):
         self.ensure_one()
+        _logger.info(
+            'action_create_link: sale_ids=%s active_ids=%s (active_model=%s)',
+            self.sale_ids.ids, self.env.context.get('active_ids'),
+            self.env.context.get('active_model'))
         orders = self._validate_orders()
+        # Si el cliente descartó sale_ids al guardar (campo readonly), lo
+        # restauramos para que el wizard reabierto muestre las órdenes y el total.
+        if orders != self.sale_ids:
+            self.write({'sale_ids': [(6, 0, orders.ids)]})
         provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([
             ('company_id', '=', orders.company_id.id)], limit=1)
         if not provider:

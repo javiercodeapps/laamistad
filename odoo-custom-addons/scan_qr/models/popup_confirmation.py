@@ -16,7 +16,7 @@ class CustomPopupConfirmation(models.TransientModel):
     callback = fields.Char()
     source_model = fields.Char()
 
-    def show(self, records, message, callback_name=None):
+    def show_mp(self, records, message, callback_name=None):
         context = dict(self.env.context)
         context.update(record_ids=records.ids)
 
@@ -32,7 +32,7 @@ class CustomPopupConfirmation(models.TransientModel):
             res_id      = popup.id,
             view_mode   = 'form',
             res_model   = self._name,
-            view_id     = self.env.ref('scan_qr.custom_popup_confirmation').id,
+            view_id     = self.env.ref('scan_qr.custom_popup_confirmation_mp').id,
             type        = 'ir.actions.act_window',
             context     = context,
         )

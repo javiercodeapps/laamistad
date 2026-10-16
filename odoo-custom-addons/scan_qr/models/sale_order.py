@@ -171,7 +171,7 @@ class SaleOrderQR(models.Model):
         label = context.get('label')
         if payment_type == 'MP':
             popup = self.env['paimon.popup.confirmation']
-            action = popup.show(self, 'Selccion el metodo a utilizar', 'action_confirm_type')
+            action = popup.show_mp(self, 'Selccion el metodo a utilizar', 'action_confirm_type')
             return action
 
         if payment_type == 'Multiple' and not efectivo:
@@ -407,19 +407,49 @@ class SaleOrderQR(models.Model):
             "context": {"default_sale_order_id": self.id},
         }
 
+    def _mp_link_validate_orders(self):
+        """Valida que las órdenes puedan agruparse en un único link de pago MP.
+
+        Se usa tanto al abrir el wizard (validación previa, antes de mostrar la
+        lista) como al generar el link. Se aceptan pedidos enviados ('sent') y
+        confirmados ('sale'); cualquier otro estado se rechaza.
+        """
+        if not self:
+            raise UserError(_("Debe seleccionar al menos una orden de venta."))
+        invalid_state = self.filtered(lambda o: o.state not in ('sent', 'sale'))
+        if invalid_state:
+            raise UserError(_("Solo se pueden agrupar pedidos enviados ('Presupuesto enviado') "
+                              "o confirmados ('Pedido de venta'). Revise: %s")
+                            % ", ".join(invalid_state.mapped('name')))
+        if len(self.partner_id) > 1:
+            raise UserError(_("Todas las órdenes deben ser del mismo cliente. "
+                              "Clientes encontrados: %s")
+                            % ", ".join(self.partner_id.mapped('display_name')))
+        partner = self.partner_id
+        if 'Consumidor Final' in (partner.name or ''):
+            raise UserError(_("No se puede generar un link de pago para un cliente Consumidor Final (%s). "
+                              "Debe seleccionar un cliente con nombre.") % partner.display_name)
+        if len(self.currency_id) > 1:
+            raise UserError(_("Todas las órdenes deben tener la misma moneda."))
+        if len(self.company_id) > 1:
+            raise UserError(_("Todas las órdenes deben pertenecer a la misma compañía."))
+        return self
+
     def action_mp_link_wizard(self):
         """Abre el wizard para generar un link de pago de Mercado Pago
         con una o varias órdenes seleccionadas (la suma de todas ellas).
-        Las órdenes se pasan por contexto y el wizard las toma por default."""
+        Las órdenes se validan ANTES de abrir el wizard y se pasan por contexto."""
         if not self:
             raise UserError(_("Seleccione al menos una orden de venta."))
+        orders = self._mp_link_validate_orders()
+        _logger.info('Abriendo wizard Link MP para órdenes %s' % orders.mapped('name'))
         return {
             'name': _("Link de pago Mercado Pago"),
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order.mp.link.wizard',
             'view_mode': 'form',
             'target': 'new',
-            'context': {'active_model': 'sale.order', 'active_ids': self.ids},
+            'context': {'active_model': 'sale.order', 'active_ids': orders.ids},
         }
 
     def pay_mp_link(self, data):

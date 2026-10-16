@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="custom_popup_confirmation" model="ir.ui.view">
+    <record id="custom_popup_confirmation_mp" model="ir.ui.view">
         <field name="name">Custom Popoup Confirmation</field>
         <field name="model">paimon.popup.confirmation</field>
         <field name="type">form</field>
