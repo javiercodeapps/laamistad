@@ -2,7 +2,7 @@
 <odoo>
     <record id="custom_popup_confirmation_mp" model="ir.ui.view">
         <field name="name">Custom Popoup Confirmation</field>
-        <field name="model">paimon.popup.confirmation</field>
+        <field name="model">scan_qr.popup.confirmation</field>
         <field name="type">form</field>
         <field name="arch" type="xml">
             <form string="Confirmation" version="15.0">
@@ -22,7 +22,7 @@
     </record>      
     <record id="custom_popup_efectivo" model="ir.ui.view">
         <field name="name">Custom Popoup Efectivo</field>
-        <field name="model">paimon.popup.confirmation</field>
+        <field name="model">scan_qr.popup.confirmation</field>
         <field name="type">form</field>
         <field name="arch" type="xml">
             <form string="Confirmation" version="15.0">
@@ -46,7 +46,7 @@
     </record>      
     <record id="custom_popup_clave" model="ir.ui.view">
         <field name="name">Custom Popoup clave</field>
-        <field name="model">paimon.popup.confirmation</field>
+        <field name="model">scan_qr.popup.confirmation</field>
         <field name="type">form</field>
         <field name="arch" type="xml">
             <form string="Autorizacion" version="15.0">
