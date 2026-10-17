@@ -40,3 +40,31 @@ class MercadopagoPointPaymemnt(http.Controller):
             </html>
             """
         return message
+
+    @http.route("/mercadopago_point_payment/failure", auth="public", type="http")
+    def payment_failure(self, **kw):
+        _logger.info('queue failure %s' % kw)
+        message = """
+            <html>
+            <head><title>Pago rechazado</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1 style="color: #c0392b;">El pago no se pudo procesar</h1>
+                <p>Puede intentar nuevamente con otro medio de pago.</p>
+            </body>
+            </html>
+            """
+        return message
+
+    @http.route("/mercadopago_point_payment/pending", auth="public", type="http")
+    def payment_pending(self, **kw):
+        _logger.info('queue pending %s' % kw)
+        message = """
+            <html>
+            <head><title>Pago pendiente</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1 style="color: #e67e22;">Su pago está pendiente</h1>
+                <p>Le avisaremos cuando se acredite.</p>
+            </body>
+            </html>
+            """
+        return message
