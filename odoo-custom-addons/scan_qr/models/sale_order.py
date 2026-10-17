@@ -1,4 +1,4 @@
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, SUPERUSER_ID
 from datetime import datetime, timedelta
 from odoo.exceptions import UserError
 import time
@@ -613,7 +613,14 @@ class SaleOrderQR(models.Model):
                 ', '.join(invoices.mapped('name')) or '-',
                 payment_id or '-',
             )
-            channel.sudo().message_post(body=body, message_type='comment', subtype_xmlid='mail.mt_comment')
+            # Se publica como OdooBot (SUPERUSER_ID) para que el mensaje NO quede
+            # marcado como "visto" por quien dispara el webhook: en Odoo 16
+            # sudo() no cambia el usuario, y mail.channel.message_post marca el
+            # mensaje como visto para self.env.user. Si lo publicara el usuario
+            # que abre la URL de éxito, a ese usuario no le aparecería el aviso
+            # de "no leído" en la burbuja.
+            channel.sudo().with_user(SUPERUSER_ID).message_post(
+                body=body, message_type='comment', subtype_xmlid='mail.mt_comment')
 
 
 #####################
