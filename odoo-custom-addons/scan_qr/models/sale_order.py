@@ -182,12 +182,15 @@ class SaleOrderQR(models.Model):
         sale_order_type = self.env["sale.order.type"].search([("name", "ilike", payment_type),("company_id","=",self.company_id.id)], limit=1)
         if self.state == 'sale':
             _logger.info('Procesando pago')
-            self.type_id=sale_order_type.id
+            if sale_order_type:
+                self.type_id = sale_order_type.id
             provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('state','=','enabled'),('company_id.id','=',self.company_id.id)],limit=1)
             if payment_type == 'MP QR' and provider:
                 payment_provider = self.pay_mp_qr()
                 self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
+            if payment_type == 'MP Link':
+                return self._mp_link_generate()
             for moves in self.invoice_ids:
                 pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,self.amount_due)
                 _logger.info(pay1)
@@ -239,19 +242,7 @@ class SaleOrderQR(models.Model):
                     self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
             elif payment_type in ['MP Link']:
-                _logger.info('Procesando pago')
-                _logger.info('Procesando pago %s' % payment_type)
-                _logger.info('Procesando pago %s' % self)
-                provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([('company_id.id','=', self.company_id.id)], limit=1)
-                _logger.info('Procesando pago %s' % provider)
-                if not self.payment_provider:
-                    self.payment_provider = provider.id
-                    _logger.info("Creando Link de pago:" )
-                    mp_link = provider.create_order_link(self)
-                    _logger.info("Link de pago: %s" % mp_link)
-                    self.mp_link = mp_link
-                    self.message_post(body="Link de pago: %s" % mp_link)
-                    self.env.cr.commit()
+                return self._mp_link_generate()
             elif payment_type != 'CTACTE Factura':
                 for moves in self.invoice_ids:
                     if self.type_id.name != 'Efectivo' and self.efectivo > 0:
@@ -266,6 +257,27 @@ class SaleOrderQR(models.Model):
                         pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,moves.amount_total)
                         self.reconciliar_venta(moves,[pay1])
             return 0
+
+    def _mp_link_generate(self):
+        """Genera y guarda el link de pago de Mercado Pago para esta orden.
+
+        Se usa tanto para pedidos en borrador/enviados (tras confirmarlos) como
+        para pedidos ya confirmados ('sale'), de modo que elegir 'MP Link'
+        siempre genere el link."""
+        self.ensure_one()
+        provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([
+            ('company_id.id', '=', self.company_id.id)], limit=1)
+        if not provider:
+            raise UserError(_("No se encontró la configuración de Mercado Pago Point "
+                              "para la compañía %s.") % self.company_id.name)
+        _logger.info('Generando link MP para la orden %s' % self.name)
+        mp_link = provider.create_order_link(self)
+        _logger.info('Link de pago: %s' % mp_link)
+        self.mp_link = mp_link
+        self.message_post(body="Link de pago: %s" % mp_link)
+        self.env.cr.commit()
+        return True
+
     def pay_mp_qr_wizard(self):
         _logger.info('Abriendo QR 1 %s %s' % (self.payment_status,self.payment_provider) )
         if self.payment_provider and self.payment_provider.state in ['draft','pending']:
