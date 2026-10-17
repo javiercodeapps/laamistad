@@ -126,6 +126,14 @@
                     <field name="mp_link" readonly="1" nolabel="1" widget="CopyClipboardChar" />
                   </td>
                 </tr>
+                <tr attrs="{'invisible': ['|', ('mp_link', '=', False), ('payment_status', '=', 'Paid')]}">
+                  <td />
+                  <td class="oe_right">
+                    <button name="action_mp_link_regenerate" type="object"
+                      string="Regenerar link de pago"
+                      class="btn btn-secondary btn-sm" />
+                  </td>
+                </tr>
                 <tr attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}">
                   <td>
                     <label for="redondeo">Redondeo:</label>

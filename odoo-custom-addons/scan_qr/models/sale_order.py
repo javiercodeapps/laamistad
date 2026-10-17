@@ -278,6 +278,23 @@ class SaleOrderQR(models.Model):
         self.env.cr.commit()
         return True
 
+    def action_mp_link_regenerate(self):
+        """Botón del formulario: regenera el link de pago de Mercado Pago.
+
+        Solo para órdenes que no están pagas; vuelve a abrir el formulario
+        para mostrar el link actualizado."""
+        self.ensure_one()
+        if self.payment_status == 'Paid':
+            raise UserError(_("La orden %s ya está paga; no se regenera el link de pago.") % self.name)
+        self._mp_link_generate()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
     def pay_mp_qr_wizard(self):
         _logger.info('Abriendo QR 1 %s %s' % (self.payment_status,self.payment_provider) )
         if self.payment_provider and self.payment_provider.state in ['draft','pending']:
