@@ -258,6 +258,24 @@ class SaleOrderQR(models.Model):
                         self.reconciliar_venta(moves,[pay1])
             return 0
 
+    def _mp_link_set_type(self):
+        """Asigna a la(s) orden(es) el tipo de pedido de MP Link.
+
+        Ese tipo es el que aporta el diario de pago/invoice del link. Se usa al
+        generar el link (individual y múltiple) para que el pago posterior no
+        falle por un tipo sin diario configurado."""
+        so_type_obj = self.env['sale.order.type']
+        for order in self:
+            so_type = so_type_obj.search([
+                ('name', 'ilike', 'MP Link'),
+                ('company_id', '=', order.company_id.id)], limit=1)
+            if so_type:
+                order.type_id = so_type.id
+            else:
+                _logger.warning('No se encontró el tipo de pedido "MP Link" para la compañía %s (orden %s)'
+                                % (order.company_id.name, order.name))
+        return True
+
     def _mp_link_generate(self):
         """Genera y guarda el link de pago de Mercado Pago para esta orden.
 
@@ -271,6 +289,7 @@ class SaleOrderQR(models.Model):
             raise UserError(_("No se encontró la configuración de Mercado Pago Point "
                               "para la compañía %s.") % self.company_id.name)
         _logger.info('Generando link MP para la orden %s' % self.name)
+        self._mp_link_set_type()
         mp_link = provider.create_order_link(self)
         _logger.info('Link de pago: %s' % mp_link)
         self.mp_link = mp_link
@@ -491,7 +510,10 @@ class SaleOrderQR(models.Model):
         data = data or {}
         external_reference = data.get('external_reference') or ''
         payment_id = data.get('payment_id') or data.get('collection_id')
-        names = [n.strip() for n in external_reference.split(',') if n.strip()]
+        # Se toleran comillas envolventes: a veces el valor llega como repr/JSON
+        # ('"S61473, S61047"') en lugar de 'S61473, S61047'
+        names = [n.strip().strip('"\'').strip() for n in external_reference.split(',')]
+        names = [n for n in names if n]
         if not names:
             _logger.warning('MP success sin external_reference: %s' % data)
             return False

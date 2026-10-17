@@ -72,6 +72,7 @@ class SaleOrderMpLinkWizard(models.TransientModel):
             raise UserError(_("No se encontró la configuración de Mercado Pago Point "
                               "para la compañía %s.") % orders.company_id.name)
         _logger.info('Generando link MP múltiple para órdenes %s' % orders.mapped('name'))
+        orders._mp_link_set_type()
         mp_link = provider.create_order_link(orders)
         orders.sudo().write({'mp_link': mp_link})
         self.write({'state': 'linked', 'mp_link': mp_link})
