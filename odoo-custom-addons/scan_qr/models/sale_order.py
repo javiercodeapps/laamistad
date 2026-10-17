@@ -504,7 +504,7 @@ class SaleOrderQR(models.Model):
         status = data.get('status')
         provider = self.env['payment_mercadopago_point.mercadopago'].sudo().search([
             ('company_id', '=', orders[:1].company_id.id)], limit=1)
-        if payment_id and provider:
+        if payment_id and provider and payment_id != 'TEST':
             try:
                 status = provider.get_payment_status(orders[:1], payment_id)
             except Exception:
