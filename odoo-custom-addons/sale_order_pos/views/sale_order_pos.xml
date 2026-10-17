@@ -118,6 +118,14 @@
                       style="text-align:right;padding-right:3px !important;width:20% !important;" />
                   </td>
                 </tr>
+                <tr attrs="{'invisible': [('mp_link', '=', False)]}">
+                  <td>
+                    <label for="mp_link">Link MP:</label>
+                  </td>
+                  <td class="oe_right">
+                    <field name="mp_link" readonly="1" nolabel="1" widget="CopyClipboardChar" />
+                  </td>
+                </tr>
                 <tr attrs="{'invisible': [('state', 'in', ['sale', 'done', 'cancel'])]}">
                   <td>
                     <label for="redondeo">Redondeo:</label>

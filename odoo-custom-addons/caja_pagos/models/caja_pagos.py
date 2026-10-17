@@ -145,7 +145,7 @@ class CajaPagos(models.Model):
             else:
                 action =  dict(
                 name        = 'Transferencia',
-                target      = 'new',
+                tscan_qrarget      = 'new',
                 view_mode   = 'form',
                 res_model   = 'account.payment',
                 type        = 'ir.actions.act_window',

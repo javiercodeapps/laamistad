@@ -90,9 +90,10 @@ class PaymentMercadopagoPoint(models.Model):
                         "title": '%s%s %s' % (prefijo, line.product_id.name, line.name),
                         "quantity": line.product_uom_qty,
                         "currency_id": so.currency_id.name or 'ARS',
-                        # Precio neto (con descuento aplicado) para que la suma
-                        # del link coincida con el total de las órdenes
-                        "unit_price": line.price_subtotal / line.product_uom_qty,
+                        # Precio por unidad CON impuestos (price_total incluye
+                        # los impuestos de la línea) para que la suma del link
+                        # coincida con el total real de las órdenes
+                        "unit_price": line.price_total / line.product_uom_qty,
                 })
         # Referencia externa combinada (Mercado Pago limita el campo a 256 caracteres)
         referencia = ', '.join(sale_orders.mapped('name'))[:256]
