@@ -1,6 +1,6 @@
 from odoo import models, fields, api, _, SUPERUSER_ID
 from datetime import datetime, timedelta
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 import time
 import re
 import textwrap
@@ -536,15 +536,15 @@ class SaleOrderQR(models.Model):
             orders.message_post(body='Mercado Pago: el link devolvió el estado %s (pago %s). No se facturó.' % (status, payment_id))
             return False
         pagadas = self.env['sale.order'].sudo()
-        for order in orders:
-            try:
-                # savepoint por orden: si una falla, las demás se procesan igual
-                with self.env.cr.savepoint():
-                    if order._mp_link_invoice_and_pay():
-                        pagadas |= order
-            except Exception:
-                _logger.exception('MP success: error al facturar/pagar la orden %s' % order.name)
-                order.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise la orden.')
+        try:
+            # El link es un ÚNICO pago: un solo savepoint para todas las órdenes
+            with self.env.cr.savepoint():
+                if orders._mp_link_invoice_and_pay():
+                    pagadas = orders
+        except Exception:
+            _logger.exception('MP success: error al facturar/pagar las órdenes %s'
+                              % ', '.join(orders.mapped('name')))
+            orders.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise las órdenes.')
         if pagadas:
             pagadas._mp_link_notify_payment(payment_id)
         return True
@@ -553,37 +553,111 @@ class SaleOrderQR(models.Model):
         """Facturas de venta no canceladas de la orden."""
         return self.invoice_ids.filtered(lambda i: i.move_type == 'out_invoice' and i.state != 'cancel')
 
+    def _mp_link_prepare_invoices(self):
+        """Confirma las órdenes del link (si hace falta) y devuelve sus facturas
+        de venta publicadas."""
+        invoices = self.env['account.move']
+        for order in self:
+            # El pago del link confirma la venta: si por algún motivo la orden
+            # sigue en borrador o enviada, la confirmo antes de facturar
+            if order.state in ('draft', 'sent'):
+                order.action_confirm()
+            order_invoices = order._mp_link_invoices()
+            if not order_invoices:
+                order._create_invoices()
+                order_invoices = order._mp_link_invoices()
+            if not order_invoices:
+                raise UserError(_("No se pudieron crear las facturas de la orden %s.") % order.name)
+            invoices |= order_invoices
+        invoices.filtered(lambda i: i.state == 'draft').action_post()
+        return invoices
+
     def _mp_link_invoice_and_pay(self):
-        """Factura la orden y paga la factura con el diario de pago del tipo
-        de pedido. El diario de facturación lo toma del tipo de pedido
-        (sale_order_type lo aplica en _prepare_invoice).
-        Retorna True solo si en esta llamada se pagaron facturas."""
-        self.ensure_one()
-        # El pago del link confirma la venta: si por algún motivo la orden
-        # sigue en borrador o enviada, la confirmo antes de facturar
-        if self.state in ('draft', 'sent'):
-            self.action_confirm()
-        invoices = self._mp_link_invoices()
-        if not invoices:
-            self._create_invoices()
-            invoices = self._mp_link_invoices()
-        if not invoices:
-            raise UserError(_("No se pudieron crear las facturas de la orden %s.") % self.name)
+        """Factura las órdenes del link y registra UN ÚNICO pago por el total,
+        conciliado con todas las facturas de las órdenes (no un pago por
+        factura). El diario de pago lo toma del tipo de pedido.
+
+        Devuelve el pago (account.payment.group) creado, o un recordset vacío
+        si no quedaba nada por pagar."""
+        invoices = self._mp_link_prepare_invoices()
+        # Todo el link es un solo pago: facturas, diario, moneda y cliente
+        # tienen que poder convivir en el mismo grupo de pagos
+        if len(self.company_id) > 1:
+            raise UserError(_("Todas las órdenes deben pertenecer a la misma compañía."))
+        if len(self.partner_id) > 1:
+            raise UserError(_("Todas las órdenes deben ser del mismo cliente para "
+                              "registrar un único pago."))
+        if len(self.currency_id) > 1:
+            raise UserError(_("Todas las órdenes deben tener la misma moneda."))
+        sin_diario = self.filtered(lambda o: not o.type_id.payment_journal_id)
+        if sin_diario:
+            raise UserError(_("El tipo de pedido %s de la orden %s no tiene configurado el diario de pago.")
+                            % (sin_diario[:1].type_id.display_name, sin_diario[:1].name))
         pay_journal = self.type_id.payment_journal_id
-        if not pay_journal:
-            raise UserError(_("El tipo de pedido %s de la orden %s no tiene configurado el diario de pago.") % (self.type_id.display_name, self.name))
-        pagada = False
-        for invoice in invoices:
-            if invoice.state == 'draft':
-                invoice.action_post()
-            if invoice.payment_state in ['not_paid', 'partial']:
-                monto = invoice.amount_residual if invoice.payment_state == 'partial' else invoice.amount_total
-                payment_group = self.pay_multiple(invoice, pay_journal, monto)
-                if payment_group:
-                    self.reconciliar_venta(invoice, [payment_group])
-                    pagada = True
-                    self.message_post(body='Pago del link de Mercado Pago registrado en la factura %s (diario %s).' % (invoice.name, pay_journal.display_name))
-        return pagada
+        if len(pay_journal) > 1:
+            raise UserError(_("Las órdenes tienen diarios de pago distintos (%s): "
+                              "no se puede registrar un único pago.")
+                            % ", ".join(pay_journal.mapped('display_name')))
+        # Líneas por cobrar: solo las facturas de estas órdenes que siguen impagas
+        to_pay_lines = invoices.filtered(
+            lambda i: i.payment_state in ('not_paid', 'partial')
+        ).open_move_line_ids.filtered(
+            lambda l: l.account_id.account_type == 'asset_receivable' and not l.reconciled)
+        if not to_pay_lines:
+            return self.env['account.payment.group']
+        monto = sum(to_pay_lines.mapped('amount_residual'))
+        company = self.company_id
+        partner = self.partner_id
+        receiptbook = self.env['account.payment.receiptbook'].search([
+            ('partner_type', '=', 'customer'),
+            ('company_id', '=', company.id),
+        ], limit=1)
+        payment_group = self.env['account.payment.group'].create({
+            'partner_type': 'customer',
+            'partner_id': partner.id,
+            'company_id': company.id,
+            'receiptbook_id': receiptbook.id,
+            'to_pay_move_line_ids': [],
+        })
+        # _compute_to_pay_move_lines trae TODAS las deudas del cliente; dejo
+        # únicamente las facturas de estas órdenes para que el pago quede
+        # asociado (conciliado) a ellas
+        payment_group.remove_all()
+        payment_group.to_pay_move_line_ids = [(6, 0, to_pay_lines.ids)]
+        payment_method = pay_journal.inbound_payment_method_line_ids.payment_method_id.filtered(
+            lambda x: x.code == 'manual')
+        if not payment_method:
+            raise UserError(_('El diario %s no tiene configurado el método de pago "manual".')
+                            % pay_journal.display_name)
+        caja = self.env['account.cashbox.session'].search([
+            ('state', '=', 'opened'), ('company_id', '=', company.id)], limit=1)
+        payment_group.payment_ids.create({
+            'payment_group_id': payment_group.id,
+            'payment_type': 'inbound',
+            'partner_type': 'customer',
+            'company_id': company.id,
+            'partner_id': partner.id,
+            'amount': monto,
+            'journal_id': pay_journal.id,
+            'ref': ', '.join(self.mapped('name')),
+            'payment_method_id': payment_method.id,
+            'date': payment_group.payment_date,
+            'cashbox_session_id': caja.id,
+        })
+        # post() postea el pago y lo concilia con to_pay_move_line_ids
+        payment_group.post()
+        # Por las dudas cierro lo que haya quedado pendiente (idempotente)
+        open_lines = to_pay_lines.filtered(lambda l: not l.reconciled)
+        payment_receivable = payment_group.payment_ids.mapped('line_ids').filtered(
+            lambda l: l.account_id.account_type == 'asset_receivable' and not l.reconciled)
+        if open_lines and payment_receivable:
+            (open_lines + payment_receivable).reconcile()
+        for order in self:
+            order.message_post(body='Pago del link de Mercado Pago registrado con el pago %s (diario %s) por las facturas %s.'
+                                    % (payment_group.name or payment_group.document_number or payment_group.id,
+                                       pay_journal.display_name,
+                                       ', '.join(invoices.mapped('name'))))
+        return payment_group
 
     def _mp_link_notify_payment(self, payment_id=None):
         """Avisa en el canal '<código de la compañía> Pagos link' que se
