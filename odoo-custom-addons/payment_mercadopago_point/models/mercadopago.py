@@ -78,23 +78,16 @@ class PaymentMercadopagoPoint(models.Model):
         mp_token = self.payment_provider_id.mercado_pago_qr_access_token
         base_url = self.get_base_url()
         sdk = mercadopago.SDK(mp_token)
-        mercadopago_items = []
         fecha_exp = calcular_fecha_expiracion()
-        multiple = len(sale_orders) > 1
-        for so in sale_orders:
-            # Con múltiples órdenes prefijo cada artículo con la orden a la que pertenece
-            prefijo = '[%s] ' % so.name if multiple else ''
-            for line in so.order_line:
-                if line.product_uom_qty > 0:
-                    mercadopago_items.append({
-                        "title": '%s%s %s' % (prefijo, line.product_id.name, line.name),
-                        "quantity": line.product_uom_qty,
-                        "currency_id": so.currency_id.name or 'ARS',
-                        # Precio por unidad CON impuestos (price_total incluye
-                        # los impuestos de la línea) para que la suma del link
-                        # coincida con el total real de las órdenes
-                        "unit_price": line.price_total / line.product_uom_qty,
-                })
+        # Un único ítem por el total del link (la suma de todas las órdenes)
+        partner = sale_orders[:1].partner_id
+        mercadopago_items = [{
+            "title": 'La Amistad - %s' % (partner.name or partner.display_name),
+            "quantity": 1,
+            "currency_id": sale_orders[:1].currency_id.name or 'ARS',
+            # amount_total ya incluye los impuestos de todas las líneas
+            "unit_price": sum(sale_orders.mapped('amount_total')),
+        }]
         # Referencia externa combinada (Mercado Pago limita el campo a 256 caracteres)
         referencia = ', '.join(sale_orders.mapped('name'))[:256]
         data = { "items": mercadopago_items,
