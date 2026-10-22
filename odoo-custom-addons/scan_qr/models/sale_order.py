@@ -194,11 +194,13 @@ class SaleOrderQR(models.Model):
                 if 'Consumidor Final' in self.partner_id.name:
                     raise UserError('Debe seleccionar un cliente distinto a consumidor final para CTACTE')
                 # Cuando generamos un link de pago la orden la dejamos con el tipo CTACTE pero le agregamos un tag de MP LINK 
-                tag_id = self.env["crm.tag"].search([('name','=','MP LINK')])
+                tag_id = self.env["crm.tag"].search([('name','in',['CTACTE','MP LINK'])])
                 if tag_id:
                     self.tag_ids = tag_id.ids   
-                
-
+                self.type_id = sale_order_type.id
+                self.state = 'sent'
+                self.caja_id = caja.id
+                self.date_order = fields.datetime.now()
                 return self._mp_link_generate()
             for moves in self.invoice_ids:
                 pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,self.amount_due)
@@ -696,7 +698,6 @@ class SaleOrderQR(models.Model):
 
     def pay_mp_link(self, data):
         """Procesa el retorno de éxito de un link de pago de Mercado Pago.
-
         Verifica el pago contra la API de MP, factura las órdenes del
         external_reference (una o varias separadas por coma) y las paga con
         el diario de pago del tipo de pedido. Cuando quedan pagadas avisa en
@@ -741,6 +742,9 @@ class SaleOrderQR(models.Model):
             orders.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise las órdenes.')
         if pagadas:
             pagadas._mp_link_notify_payment(payment_id)
+            # Le tenemos que cambiar el tipo de pedido, ya que se guardo originalmente como CTACTE para poder generar el link de pago
+            payment_type = self.env["sale.order.type"].search([("name", "ilike", 'MP Link'),("company_id","=",self.company_id.id)], limit=1)
+            pagadas.write({"type_id": payment_type.id})
         return True
 
     def _mp_link_invoices(self):
