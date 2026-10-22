@@ -190,14 +190,10 @@ class SaleOrderQR(models.Model):
                 self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
             if payment_type == 'MP Link':
-                sale_order_type = self.env["sale.order.type"].search([("name", "ilike", 'CTACTE'),("company_id","=",self.company_id.id)], limit=1)
-                if 'Consumidor Final' in self.partner_id.name:
-                    raise UserError('Debe seleccionar un cliente distinto a consumidor final para CTACTE')
-                # Cuando generamos un link de pago la orden la dejamos con el tipo CTACTE pero le agregamos un tag de MP LINK 
-                tag_id = self.env["crm.tag"].search([('name','in',['CTACTE','MP LINK'])])
-                if tag_id:
-                    self.tag_ids = tag_id.ids   
-                self.type_id = sale_order_type.id
+                # Cuando generamos un link de pago la orden la dejamos con el
+                # tipo CTACTE (para que la caja la vea como cuenta corriente
+                # pendiente) y le agregamos los tags CTACTE y MP LINK.
+                self._mp_link_set_ctacte()
                 self.state = 'sent'
                 self.caja_id = caja.id
                 self.date_order = fields.datetime.now()
@@ -214,6 +210,16 @@ class SaleOrderQR(models.Model):
             raise UserError('Debe seleccionar un cliente distinto a consumidor final para CTACTE')
         if not sale_order_type:
             raise UserError(f"No se encontró el Tipos de pedido de venta '{payment_type}'.")
+        if payment_type == 'MP Link':
+            # Igual que en el flujo de pedidos ya confirmados: el pedido queda
+            # como CTACTE con los tags CTACTE y MP LINK, y recién al cobrarse
+            # el link pasa al tipo MP Link.
+            self._mp_link_set_ctacte()
+            self.state = 'sent'
+            self.caja_id = caja.id
+            self.date_order = fields.datetime.now()
+            self.env.cr.commit()
+            return self._mp_link_generate()
         _logger.info('%s %s %s %s' % (payment_type,efectivo,context.get('payment_type'),sale_order_type ) )
         self.type_id=sale_order_type.id
         self.env.cr.commit()
@@ -252,8 +258,6 @@ class SaleOrderQR(models.Model):
                     payment_provider = self.pay_mp_qr(self.efectivo)
                     self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
-            elif payment_type in ['MP Link']:
-                return self._mp_link_generate()
             elif payment_type != 'CTACTE Factura':
                 for moves in self.invoice_ids:
                     if self.type_id.name != 'Efectivo' and self.efectivo > 0:
@@ -269,22 +273,55 @@ class SaleOrderQR(models.Model):
                         self.reconciliar_venta(moves,[pay1])
             return 0
 
-    def _mp_link_set_type(self):
-        """Asigna a la(s) orden(es) el tipo de pedido de MP Link.
+    def _mp_link_type(self):
+        """Tipo de pedido 'MP Link' de la compañía de la orden.
 
-        Ese tipo es el que aporta el diario de pago/invoice del link. Se usa al
-        generar el link (individual y múltiple) para que el pago posterior no
-        falle por un tipo sin diario configurado."""
-        so_type_obj = self.env['sale.order.type']
+        Ese tipo es el que aporta el diario de pago del link y el que se le
+        asigna al pedido recién cuando el pago se acredita."""
+        self.ensure_one()
+        return self.env['sale.order.type'].search([
+            ('name', 'ilike', 'MP Link'),
+            ('company_id', '=', self.company_id.id)], limit=1)
+
+    def _mp_link_ctacte_type(self):
+        """Tipo de pedido 'CTACTE' de la compañía de la orden.
+
+        Es el tipo con el que queda guardado el pedido mientras el link está
+        pendiente: el resumen de caja toma los pedidos CTACTE como cuenta
+        corriente pendiente de cobro."""
+        self.ensure_one()
+        return self.env['sale.order.type'].search([
+            ('name', 'ilike', 'CTACTE'),
+            ('company_id', '=', self.company_id.id)], limit=1)
+
+    def _mp_link_tags(self):
+        """Tags 'CTACTE' y 'MP LINK' (se crean si no existen)."""
+        tags = self.env['crm.tag']
+        for name in ('CTACTE', 'MP LINK'):
+            tag = self.env['crm.tag'].search([('name', '=ilike', name)], limit=1)
+            if not tag:
+                tag = self.env['crm.tag'].sudo().create({'name': name})
+            tags |= tag
+        return tags
+
+    def _mp_link_set_ctacte(self):
+        """Deja la(s) orden(es) guardadas como CTACTE con los tags CTACTE y
+        MP LINK mientras el link de pago está pendiente de cobro.
+
+        No se cambia el estado de la orden: eso lo decide cada flujo (alta
+        desde el popup o link generado desde el wizard de varias órdenes)."""
+        if not self:
+            return True
+        tags = self._mp_link_tags()
         for order in self:
-            so_type = so_type_obj.search([
-                ('name', 'ilike', 'MP Link'),
-                ('company_id', '=', order.company_id.id)], limit=1)
-            if so_type:
-                order.type_id = so_type.id
-            else:
-                _logger.warning('No se encontró el tipo de pedido "MP Link" para la compañía %s (orden %s)'
-                                % (order.company_id.name, order.name))
+            if 'Consumidor Final' in (order.partner_id.name or ''):
+                raise UserError(_('Debe seleccionar un cliente distinto a consumidor final para CTACTE'))
+            ctacte_type = order._mp_link_ctacte_type()
+            if not ctacte_type:
+                raise UserError(_("No se encontró el tipo de pedido 'CTACTE' para la compañía %s.")
+                                % order.company_id.name)
+            order.type_id = ctacte_type.id
+            order.tag_ids = [(4, tag.id) for tag in tags]
         return True
 
     def _mp_link_provider(self):
@@ -369,13 +406,27 @@ class SaleOrderQR(models.Model):
             }
         return action
 
+    def _mp_link_payment_journal(self):
+        """Diario con el que se registra el cobro del link.
+
+        El pedido queda guardado como CTACTE hasta que el pago se acredita, así
+        que el diario no se toma del tipo del pedido sino del tipo 'MP Link'.
+        """
+        self.ensure_one()
+        journal = self._mp_link_type().payment_journal_id or self.type_id.payment_journal_id
+        if not journal:
+            raise UserError(_("El tipo de pedido 'MP Link' no tiene configurado el diario de pago."))
+        return journal
+
     def _mp_link_generate_for_orders(self, orders):
         """Genera un único link para el grupo de órdenes y lo guarda en todas."""
         orders = orders.sorted('id')
         if not orders:
             raise UserError(_("Debe seleccionar al menos una orden de venta."))
         provider = orders[:1]._mp_link_provider()
-        orders._mp_link_set_type()
+        # El pedido queda como CTACTE (con tags CTACTE y MP LINK) hasta que el
+        # link se cobre; recién ahí pasa a MP Link.
+        orders._mp_link_set_ctacte()
         _logger.info('Generando link MP para las órdenes %s' % orders.mapped('name'))
         mp_link = provider.create_order_link(orders)
         _logger.info('Link de pago: %s' % mp_link)
@@ -742,9 +793,11 @@ class SaleOrderQR(models.Model):
             orders.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise las órdenes.')
         if pagadas:
             pagadas._mp_link_notify_payment(payment_id)
-            # Le tenemos que cambiar el tipo de pedido, ya que se guardo originalmente como CTACTE para poder generar el link de pago
-            payment_type = self.env["sale.order.type"].search([("name", "ilike", 'MP Link'),("company_id","=",self.company_id.id)], limit=1)
-            pagadas.write({"type_id": payment_type.id})
+            # El pedido se guardó como CTACTE mientras el link estaba pendiente;
+            # una vez cobrado pasa al tipo MP Link (así lo toma la caja).
+            mp_link_type = pagadas[:1]._mp_link_type()
+            if mp_link_type:
+                pagadas.write({"type_id": mp_link_type.id})
         return True
 
     def _mp_link_invoices(self):
@@ -773,7 +826,8 @@ class SaleOrderQR(models.Model):
     def _mp_link_invoice_and_pay(self):
         """Factura las órdenes del link y registra UN ÚNICO pago por el total,
         conciliado con todas las facturas de las órdenes (no un pago por
-        factura). El diario de pago lo toma del tipo de pedido.
+        factura). El diario de pago lo toma del tipo 'MP Link', ya que el
+        pedido queda como CTACTE hasta que el pago se acredita.
 
         Devuelve el pago (account.payment.group) creado, o un recordset vacío
         si no quedaba nada por pagar."""
@@ -787,11 +841,9 @@ class SaleOrderQR(models.Model):
                               "registrar un único pago."))
         if len(self.currency_id) > 1:
             raise UserError(_("Todas las órdenes deben tener la misma moneda."))
-        sin_diario = self.filtered(lambda o: not o.type_id.payment_journal_id)
-        if sin_diario:
-            raise UserError(_("El tipo de pedido %s de la orden %s no tiene configurado el diario de pago.")
-                            % (sin_diario[:1].type_id.display_name, sin_diario[:1].name))
-        pay_journal = self.type_id.payment_journal_id
+        pay_journal = self.env['account.journal']
+        for order in self:
+            pay_journal |= order._mp_link_payment_journal()
         if len(pay_journal) > 1:
             raise UserError(_("Las órdenes tienen diarios de pago distintos (%s): "
                               "no se puede registrar un único pago.")
