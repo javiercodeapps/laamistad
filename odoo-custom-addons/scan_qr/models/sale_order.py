@@ -362,6 +362,7 @@ class SaleOrderQR(models.Model):
                 'res_model': 'sale.order',
                 'res_id': self.id,
                 'view_mode': 'form',
+                'views': [[False, 'form']],
                 'target': 'current',
             }
         return action
@@ -501,6 +502,7 @@ class SaleOrderQR(models.Model):
             'res_model': 'sale.order',
             'res_id': self.id,
             'view_mode': 'form',
+            'views': [[False, 'form']],
             'target': 'current',
         }
 
@@ -641,6 +643,7 @@ class SaleOrderQR(models.Model):
             "name": "Scan QR Code",
             "res_model": "scan.qr.wizard",
             "view_mode": "form",
+            "views": [[False, "form"]],
             "target": "new",
             "context": {"default_sale_order_id": self.id},
         }
@@ -686,6 +689,7 @@ class SaleOrderQR(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order.mp.link.wizard',
             'view_mode': 'form',
+            'views': [[False, 'form']],
             'target': 'new',
             'context': {'active_model': 'sale.order', 'active_ids': orders.ids},
         }
