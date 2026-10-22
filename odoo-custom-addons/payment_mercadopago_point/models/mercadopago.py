@@ -107,19 +107,17 @@ class PaymentMercadopagoPoint(models.Model):
         preference_response = sdk.preference().create(data)
         _logger.info("preference_response: %s", preference_response)
         preference = preference_response["response"]
-        # Guardo el vencimiento real del link para poder reutilizarlo mientras
-        # siga vigente (y no generar links nuevos sin necesidad).
-        expiration_date = _parse_mp_datetime(
-            preference.get('date_of_expiration') or fecha_exp)
+        # El historial guarda el diccionario completo de la preferencia. Me
+        # aseguro de que incluya el vencimiento (es lo que se usa después para
+        # saber si el link sigue vigente, sin agregar columnas nuevas).
+        preference_history = dict(preference)
+        preference_history.setdefault('date_of_expiration', fecha_exp)
         # Registro el historial y aviso en cada orden que participa del link
         for so in sale_orders:
             self.env['payment_mercadopago_point.mercadopago.history'].create({
                 'sale_id': so.id,
                 'name': referencia,
-                'preference': str(preference),
-                'preference_id': preference.get('id'),
-                'mp_link': preference.get('init_point'),
-                'expiration_date': expiration_date,
+                'preference': str(preference_history),
             })
             so.message_post(body='Mercado Pago Link de pago %s (Órdenes: %s)' % (preference['init_point'], referencia))
         return preference['init_point']
@@ -261,9 +259,6 @@ class PaymentMercadopagoPointHistory(models.Model):
     sale_id = fields.Many2one('sale.order', 'Sale Order')
     name = fields.Char('Name')
     preference = fields.Char('Preference')
-    preference_id = fields.Char('Preference ID')
-    mp_link = fields.Char('Link de pago')
-    expiration_date = fields.Datetime('Vencimiento del link')
     date = fields.Datetime('Date', default=fields.Datetime.now)
 
     def get_id(self,so):
@@ -272,37 +267,30 @@ class PaymentMercadopagoPointHistory(models.Model):
         return pref['id']
 
     def _get_link_data(self):
-        """Devuelve los datos del link guardados en este historial.
+        """Devuelve los datos del link guardados en el campo ``preference``.
 
-        Para registros viejos (creados antes de agregar los campos) se
-        reconstruyen leyendo el diccionario de la preferencia que se guardó
-        en el campo ``preference``.
+        La preferencia se guardó como ``str(dict)`` al crear el link; de ahí
+        se obtienen el link, el id y el vencimiento sin necesitar columnas
+        adicionales en el modelo.
         """
         self.ensure_one()
-        data = {
-            'mp_link': self.mp_link,
-            'preference_id': self.preference_id,
-            'date_of_expiration': self.expiration_date,
+        try:
+            preference = ast.literal_eval(self.preference or '{}')
+        except (ValueError, SyntaxError):
+            preference = {}
+        if not isinstance(preference, dict):
+            preference = {}
+        return {
+            'mp_link': preference.get('init_point') or preference.get('sandbox_init_point'),
+            'preference_id': preference.get('id'),
+            'date_of_expiration': preference.get('date_of_expiration'),
             'reference': self.name,
         }
-        if not (data['mp_link'] or data['preference_id'] or data['date_of_expiration']):
-            try:
-                preference = ast.literal_eval(self.preference or '{}')
-            except (ValueError, SyntaxError):
-                preference = {}
-            if isinstance(preference, dict):
-                data['mp_link'] = preference.get('init_point') or preference.get('sandbox_init_point')
-                data['preference_id'] = preference.get('id')
-                data['date_of_expiration'] = preference.get('date_of_expiration')
-        return data
 
     def _get_expiration_datetime(self):
         """Vencimiento del link como datetime UTC naive (o False)."""
         self.ensure_one()
-        value = self.expiration_date
-        if not value:
-            value = self._get_link_data().get('date_of_expiration')
-        return _parse_mp_datetime(value)
+        return _parse_mp_datetime(self._get_link_data().get('date_of_expiration'))
 
 
 def _parse_mp_datetime(value):
