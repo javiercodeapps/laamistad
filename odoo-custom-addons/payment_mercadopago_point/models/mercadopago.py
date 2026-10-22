@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ast
 import logging
 
 from odoo import models, fields, api, _
@@ -106,15 +107,47 @@ class PaymentMercadopagoPoint(models.Model):
         preference_response = sdk.preference().create(data)
         _logger.info("preference_response: %s", preference_response)
         preference = preference_response["response"]
+        # Guardo el vencimiento real del link para poder reutilizarlo mientras
+        # siga vigente (y no generar links nuevos sin necesidad).
+        expiration_date = _parse_mp_datetime(
+            preference.get('date_of_expiration') or fecha_exp)
         # Registro el historial y aviso en cada orden que participa del link
         for so in sale_orders:
             self.env['payment_mercadopago_point.mercadopago.history'].create({
                 'sale_id': so.id,
                 'name': referencia,
                 'preference': str(preference),
+                'preference_id': preference.get('id'),
+                'mp_link': preference.get('init_point'),
+                'expiration_date': expiration_date,
             })
             so.message_post(body='Mercado Pago Link de pago %s (Órdenes: %s)' % (preference['init_point'], referencia))
         return preference['init_point']
+
+    def search_payments(self, external_reference, limit=30):
+        """Busca en Mercado Pago los pagos asociados a una referencia externa.
+
+        Se usa para comprobar si el pago ingresó aunque el callback/webhook
+        no se haya disparado. Devuelve la lista de pagos encontrados (puede
+        haber intentos rechazados y uno aprobado).
+        """
+        mp_token = self.payment_provider_id.mercado_pago_qr_access_token
+        sdk = mercadopago.SDK(mp_token)
+        response = sdk.payment().search({
+            "external_reference": external_reference,
+            "limit": limit,
+        })
+        _logger.info("MP payment search %s: %s", external_reference, response)
+        status = response.get("status")
+        if status and status >= 400:
+            raise UserError(_("Mercado Pago devolvió un error al consultar los pagos: %s")
+                            % (response.get("response") or response))
+        results = (response.get("response") or {}).get("results") or []
+        if not isinstance(results, list):
+            results = []
+        # El más reciente primero (para priorizar el último intento)
+        results.sort(key=lambda p: p.get('date_created') or '', reverse=True)
+        return results
 
     def get_payment_status(self,so,payment_id=None):
         mp_token = self.payment_provider_id.mercado_pago_qr_access_token
@@ -127,7 +160,7 @@ class PaymentMercadopagoPoint(models.Model):
     def get_order_status(self,so):
         preference = self.env['payment_mercadopago_point.mercadopago.history'].search([('sale_id', '=', so.id)],order='date desc', limit=1)
         _logger.info("preference: %s", preference.preference)
-        pref = eval(preference.preference)
+        pref = ast.literal_eval(preference.preference or '{}')
         mp_token = self.payment_provider_id.mercado_pago_qr_access_token
         sdk = mercadopago.SDK(mp_token)
         preference_response = sdk.order().get(pref['id'])
@@ -220,6 +253,7 @@ def calcular_fecha_expiracion(creacion_dt=None, hora_limite=23, horas_duracion=3
     iso_str = fecha_expiracion.strftime('%Y-%m-%dT%H:%M:%S.000') + offset_formateado
     return iso_str
 
+
 class PaymentMercadopagoPointHistory(models.Model):
     _name = 'payment_mercadopago_point.mercadopago.history'
     _description = 'Payment Mercadopago Point History'
@@ -227,9 +261,62 @@ class PaymentMercadopagoPointHistory(models.Model):
     sale_id = fields.Many2one('sale.order', 'Sale Order')
     name = fields.Char('Name')
     preference = fields.Char('Preference')
+    preference_id = fields.Char('Preference ID')
+    mp_link = fields.Char('Link de pago')
+    expiration_date = fields.Datetime('Vencimiento del link')
     date = fields.Datetime('Date', default=fields.Datetime.now)
 
     def get_id(self,so):
         preference = self.env['payment_mercadopago_point.mercadopago.history'].search([('sale_id', '=', so.id)],order='date desc', limit=1)
-        pref = eval(preference.preference)
+        pref = ast.literal_eval(preference.preference or '{}')
         return pref['id']
+
+    def _get_link_data(self):
+        """Devuelve los datos del link guardados en este historial.
+
+        Para registros viejos (creados antes de agregar los campos) se
+        reconstruyen leyendo el diccionario de la preferencia que se guardó
+        en el campo ``preference``.
+        """
+        self.ensure_one()
+        data = {
+            'mp_link': self.mp_link,
+            'preference_id': self.preference_id,
+            'date_of_expiration': self.expiration_date,
+            'reference': self.name,
+        }
+        if not (data['mp_link'] or data['preference_id'] or data['date_of_expiration']):
+            try:
+                preference = ast.literal_eval(self.preference or '{}')
+            except (ValueError, SyntaxError):
+                preference = {}
+            if isinstance(preference, dict):
+                data['mp_link'] = preference.get('init_point') or preference.get('sandbox_init_point')
+                data['preference_id'] = preference.get('id')
+                data['date_of_expiration'] = preference.get('date_of_expiration')
+        return data
+
+    def _get_expiration_datetime(self):
+        """Vencimiento del link como datetime UTC naive (o False)."""
+        self.ensure_one()
+        value = self.expiration_date
+        if not value:
+            value = self._get_link_data().get('date_of_expiration')
+        return _parse_mp_datetime(value)
+
+
+def _parse_mp_datetime(value):
+    """Convierte una fecha ISO 8601 de Mercado Pago a datetime UTC naive,
+    que es el formato que Odoo guarda en los campos Datetime."""
+    if not value:
+        return False
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        try:
+            dt = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except (ValueError, TypeError):
+            return False
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(pytz.utc).replace(tzinfo=None)
+    return dt

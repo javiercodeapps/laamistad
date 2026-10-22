@@ -129,6 +129,9 @@
                 <tr attrs="{'invisible': ['|', ('mp_link', '=', False), ('payment_status', '=', 'Paid')]}">
                   <td />
                   <td class="oe_right">
+                    <button name="action_mp_link_check_payment" type="object"
+                      string="Verificar pago"
+                      class="btn btn-primary btn-sm" />
                     <button name="action_mp_link_regenerate" type="object"
                       string="Regenerar link de pago"
                       class="btn btn-secondary btn-sm" />

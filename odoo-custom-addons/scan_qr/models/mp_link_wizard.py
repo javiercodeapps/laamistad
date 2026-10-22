@@ -66,18 +66,25 @@ class SaleOrderMpLinkWizard(models.TransientModel):
         # restauramos para que el wizard reabierto muestre las órdenes y el total.
         if orders != self.sale_ids:
             self.write({'sale_ids': [(6, 0, orders.ids)]})
-        provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([
-            ('company_id', '=', orders.company_id.id)], limit=1)
-        if not provider:
-            raise UserError(_("No se encontró la configuración de Mercado Pago Point "
-                              "para la compañía %s.") % orders.company_id.name)
         _logger.info('Generando link MP múltiple para órdenes %s' % orders.mapped('name'))
-        orders._mp_link_set_type()
-        mp_link = provider.create_order_link(orders)
-        orders.sudo().write({'mp_link': mp_link})
+        mp_link = orders[0]._mp_link_generate_for_orders(orders)
         self.write({'state': 'linked', 'mp_link': mp_link})
         # Reabro el wizard para mostrar el link generado con la opción de copiar
         action = self.env['ir.actions.act_window']._for_xml_id('scan_qr.action_mp_link_wizard')
         action['res_id'] = self.id
         action['context'] = dict(self.env.context)
         return action
+
+    def action_check_payment(self):
+        """Consulta Mercado Pago desde el wizard (por si no llegó el callback).
+
+        Si el pago se registra, se cierra el wizard; el aviso lo muestra el
+        propio método del pedido."""
+        self.ensure_one()
+        orders = self._get_orders()
+        if not orders:
+            raise UserError(_("No hay órdenes para verificar."))
+        result = orders[:1].action_mp_link_check_payment()
+        if isinstance(result, dict) and result.get('tag') == 'display_notification':
+            result['params']['next'] = {'type': 'ir.actions.act_window_close'}
+        return result

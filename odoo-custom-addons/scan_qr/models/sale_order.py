@@ -190,6 +190,15 @@ class SaleOrderQR(models.Model):
                 self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
             if payment_type == 'MP Link':
+                sale_order_type = self.env["sale.order.type"].search([("name", "ilike", 'CTACTE'),("company_id","=",self.company_id.id)], limit=1)
+                if 'Consumidor Final' in self.partner_id.name:
+                    raise UserError('Debe seleccionar un cliente distinto a consumidor final para CTACTE')
+                # Cuando generamos un link de pago la orden la dejamos con el tipo CTACTE pero le agregamos un tag de MP LINK 
+                tag_id = self.env["crm.tag"].search([('name','=','MP LINK')])
+                if tag_id:
+                    self.tag_ids = tag_id.ids   
+                
+
                 return self._mp_link_generate()
             for moves in self.invoice_ids:
                 pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,self.amount_due)
@@ -276,6 +285,100 @@ class SaleOrderQR(models.Model):
                                 % (order.company_id.name, order.name))
         return True
 
+    def _mp_link_provider(self):
+        """Configuración de Mercado Pago Point de la compañía de la orden."""
+        self.ensure_one()
+        provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([
+            ('company_id.id', '=', self.company_id.id)], limit=1)
+        if not provider:
+            raise UserError(_("No se encontró la configuración de Mercado Pago Point "
+                              "para la compañía %s.") % self.company_id.name)
+        return provider
+
+    def _mp_link_last_history(self, orders=None):
+        """Último link generado para las órdenes indicadas (o para esta)."""
+        orders = orders or self
+        return self.env['payment_mercadopago_point.mercadopago.history'].sudo().search(
+            [('sale_id', 'in', orders.ids)], order='date desc', limit=1)
+
+    def _mp_link_reference(self, orders=None):
+        """Referencia externa con la que se creó el último link del grupo."""
+        orders = orders or self
+        history = self._mp_link_last_history(orders)
+        if history and history.name:
+            return history.name
+        return ', '.join(orders.mapped('name'))[:256]
+
+    def _mp_link_related_orders(self):
+        """Órdenes que comparten el último link (un link puede agrupar varias)."""
+        self.ensure_one()
+        history = self._mp_link_last_history(self)
+        if history and history.name:
+            names = [n.strip().strip('"\'') for n in history.name.split(',') if n.strip()]
+            orders = self.env['sale.order'].sudo().search([('name', 'in', names)])
+            if orders:
+                return orders
+        return self
+
+    def _mp_link_current_link_info(self, orders=None):
+        """Datos del último link si sigue vigente (vencimiento futuro).
+
+        Devuelve {} si no hay link, si no se conoce su vencimiento o si ya
+        venció: en esos casos corresponde generar uno nuevo.
+        """
+        orders = orders or self
+        history = self._mp_link_last_history(orders)
+        if not history:
+            return {}
+        data = history._get_link_data()
+        link = data.get('mp_link')
+        expiration = history._get_expiration_datetime()
+        if not link or not expiration:
+            return {}
+        if expiration <= fields.Datetime.now():
+            return {}
+        return {
+            'link': link,
+            'expiration': expiration,
+            'history': history,
+        }
+
+    def _mp_link_notify_action(self, message, notif_type='info', reload=False):
+        """Acción cliente para mostrar un aviso y, opcionalmente, recargar
+        el formulario de la orden."""
+        action = {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Mercado Pago'),
+                'message': message,
+                'type': notif_type,
+                'sticky': False,
+            },
+        }
+        if reload:
+            action['params']['next'] = {
+                'type': 'ir.actions.act_window',
+                'res_model': 'sale.order',
+                'res_id': self.id,
+                'view_mode': 'form',
+                'target': 'current',
+            }
+        return action
+
+    def _mp_link_generate_for_orders(self, orders):
+        """Genera un único link para el grupo de órdenes y lo guarda en todas."""
+        orders = orders.sorted('id')
+        if not orders:
+            raise UserError(_("Debe seleccionar al menos una orden de venta."))
+        provider = orders[:1]._mp_link_provider()
+        orders._mp_link_set_type()
+        _logger.info('Generando link MP para las órdenes %s' % orders.mapped('name'))
+        mp_link = provider.create_order_link(orders)
+        _logger.info('Link de pago: %s' % mp_link)
+        orders.sudo().write({'mp_link': mp_link})
+        return mp_link
+
     def _mp_link_generate(self):
         """Genera y guarda el link de pago de Mercado Pago para esta orden.
 
@@ -283,29 +386,116 @@ class SaleOrderQR(models.Model):
         para pedidos ya confirmados ('sale'), de modo que elegir 'MP Link'
         siempre genere el link."""
         self.ensure_one()
-        provider = self.env["payment_mercadopago_point.mercadopago"].sudo().search([
-            ('company_id.id', '=', self.company_id.id)], limit=1)
-        if not provider:
-            raise UserError(_("No se encontró la configuración de Mercado Pago Point "
-                              "para la compañía %s.") % self.company_id.name)
-        _logger.info('Generando link MP para la orden %s' % self.name)
-        self._mp_link_set_type()
-        mp_link = provider.create_order_link(self)
-        _logger.info('Link de pago: %s' % mp_link)
-        self.mp_link = mp_link
-        self.message_post(body="Link de pago: %s" % mp_link)
+        self._mp_link_generate_for_orders(self)
         self.env.cr.commit()
         return True
+
+    def action_mp_link_check_payment(self):
+        """Comprueba en Mercado Pago si el pago ingresó aunque el callback no
+        se haya disparado y, si está aprobado, continúa el proceso
+        (factura, registra el pago y notifica)."""
+        self.ensure_one()
+        orders = self._mp_link_related_orders()
+        if orders and all(o.payment_status == 'Paid' for o in orders):
+            if len(orders) == 1:
+                message = _('La orden %s ya está paga.') % orders.name
+            else:
+                message = _('Las órdenes %s ya están pagas.') % ', '.join(
+                    orders.mapped('name'))
+            return self._mp_link_notify_action(message, 'info')
+        provider = self._mp_link_provider()
+        reference = self._mp_link_reference(orders)
+        try:
+            payments = provider.search_payments(reference)
+        except Exception:
+            _logger.exception('No se pudo consultar los pagos del link %s', reference)
+            raise UserError(_('No se pudo consultar Mercado Pago. '
+                              'Intente nuevamente en unos instantes.'))
+        approved = next((p for p in payments if p.get('status') == 'approved'), None)
+        if approved:
+            processed = self.pay_mp_link({
+                'external_reference': reference,
+                'payment_id': approved.get('id'),
+                'status': approved.get('status'),
+            })
+            if processed:
+                return self._mp_link_notify_action(
+                    _('El pago de Mercado Pago fue confirmado y se registró correctamente.'),
+                    'success', reload=True)
+            return self._mp_link_notify_action(
+                _('Mercado Pago informó el pago como aprobado, pero no se pudo '
+                  'completar el registro. Revise el chatter de las órdenes.'),
+                'warning', reload=True)
+        pending = next((p for p in payments if p.get('status') in (
+            'pending', 'in_process', 'authorized')), None)
+        if pending:
+            return self._mp_link_notify_action(
+                _('Mercado Pago informa un pago pendiente (estado: %s). '
+                  'Todavía no se registró.') % pending.get('status'),
+                'warning', reload=True)
+        rejected = next((p for p in payments if p.get('status') == 'rejected'), None)
+        if rejected:
+            return self._mp_link_notify_action(
+                _('Mercado Pago informa que el último pago fue rechazado. '
+                  'Puede regenerar el link y volver a intentar.'),
+                'danger', reload=True)
+        return self._mp_link_notify_action(
+            _('No se encontraron pagos en Mercado Pago para el link %s.') % reference,
+            'info', reload=True)
 
     def action_mp_link_regenerate(self):
         """Botón del formulario: regenera el link de pago de Mercado Pago.
 
-        Solo para órdenes que no están pagas; vuelve a abrir el formulario
-        para mostrar el link actualizado."""
+        Antes de regenerar verifica en Mercado Pago si el pago ya ingresó
+        (por si no llegó el callback) y si el último link sigue vigente.
+        Solo genera un link nuevo cuando el anterior venció y no hay pagos.
+        """
         self.ensure_one()
-        if self.payment_status == 'Paid':
+        orders = self._mp_link_related_orders()
+        if any(o.payment_status == 'Paid' for o in orders):
             raise UserError(_("La orden %s ya está paga; no se regenera el link de pago.") % self.name)
-        self._mp_link_generate()
+        provider = self._mp_link_provider()
+        reference = self._mp_link_reference(orders)
+        try:
+            payments = provider.search_payments(reference)
+        except Exception:
+            _logger.exception('No se pudo verificar el pago del link %s', reference)
+            raise UserError(_('No se pudo verificar el pago con Mercado Pago. '
+                              'No se regeneró el link; intente nuevamente.'))
+        approved = next((p for p in payments if p.get('status') == 'approved'), None)
+        if approved:
+            processed = self.pay_mp_link({
+                'external_reference': reference,
+                'payment_id': approved.get('id'),
+                'status': approved.get('status'),
+            })
+            if processed:
+                return self._mp_link_notify_action(
+                    _('El pago ya había ingresado en Mercado Pago y se registró '
+                      'correctamente. No se regeneró el link.'),
+                    'success', reload=True)
+            return self._mp_link_notify_action(
+                _('El pago ya ingresó en Mercado Pago, pero no se pudo completar '
+                  'el registro. Revise el chatter de las órdenes.'),
+                'warning', reload=True)
+        pending = next((p for p in payments if p.get('status') in (
+            'pending', 'in_process', 'authorized')), None)
+        if pending:
+            return self._mp_link_notify_action(
+                _('Hay un pago pendiente en Mercado Pago (estado: %s). '
+                  'No se regeneró el link para evitar un cobro duplicado.')
+                % pending.get('status'), 'warning', reload=True)
+        info = self._mp_link_current_link_info(orders)
+        if info:
+            orders.sudo().write({'mp_link': info['link']})
+            expiration = fields.Datetime.context_timestamp(self, info['expiration'])
+            return self._mp_link_notify_action(
+                _('El último link generado sigue vigente hasta el %s. '
+                  'No se generó uno nuevo.')
+                % expiration.strftime('%d/%m/%Y %H:%M'),
+                'warning', reload=True)
+        self._mp_link_generate_for_orders(orders)
+        self.env.cr.commit()
         return {
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order',
