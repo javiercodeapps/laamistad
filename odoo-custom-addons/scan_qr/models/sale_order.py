@@ -190,6 +190,15 @@ class SaleOrderQR(models.Model):
                 self.payment_provider = payment_provider.id
                 return self.pay_mp_qr_wizard()
             if payment_type == 'MP Link':
+                # Vamos a verificar si la orden tiene un link activo antes de generar uno nuevo
+                if self.mp_link:
+                    # Verificamos si el link sigue vigente
+                    info = self._mp_link_current_link_info()
+                    if info:
+                        expiration = fields.Datetime.context_timestamp(self, info['expiration'])
+                        raise UserError(_('El último link generado sigue vigente hasta el %s. '
+                                          'No se generó uno nuevo.') % expiration.strftime('%d/%m/%Y %H:%M'))
+                    return self.action_mp_link_regenerate()
                 # Cuando generamos un link de pago la orden la dejamos con el
                 # tipo CTACTE (para que la caja la vea como cuenta corriente
                 # pendiente) y le agregamos los tags CTACTE y MP LINK. Si ya
