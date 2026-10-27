@@ -6,6 +6,7 @@
         <field name="model">balanza.verify.wizard</field>
         <field name="arch" type="xml">
             <form>
+                <field name="state" invisible="1"/>
                 <group attrs="{'invisible': [('state', '=', 'done')]}">
                     <group>
                         <field name="scale_id"/>
