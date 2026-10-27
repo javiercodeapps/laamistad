@@ -15,7 +15,7 @@ class SaleOrderQR(models.Model):
     _inherit = "sale.order"
 
     ticket_num = fields.Char(string="Ticket Number", size=4)
-    seller = fields.Char(string="Seller", size=1)
+    seller = fields.Char(string="Seller", size=2)
     scale = fields.Char(string="Scale Number", size=3)
     total_items = fields.Integer(string="Total Items", default=0)
     payment_provider = fields.Many2one('payment.transaction')
@@ -97,8 +97,8 @@ class SaleOrderQR(models.Model):
             time_str = header[8:13]  # Hora (hh:mm)
             time_str = re.sub('Ñ',':',time_str)
             ticket_num = header[13:17]  # Ticket Number (4 characters after time)
-            seller = header[17:18]  # Seller (1 character)
-            scale = header[18:21]  # Scale Number (3 characters)
+            seller = header[17:19]  # Seller (1 character)
+            scale = header[19:21]  # Scale Number (3 characters)
             total_items = int(header[21:23])  # Item Count (2 digits)
 
             # Return the parsed values
