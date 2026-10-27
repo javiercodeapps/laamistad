@@ -106,8 +106,10 @@ class CashBoxSale(models.Model):
                             so=False
                             for line in pay.reconciled_invoice_ids:
                                 for so in line.line_ids.sale_line_ids:
-                                    if so.create_date < self.opening_date:
+                                    if self.tag_ids and any(tag.name == 'CTACTE' for tag in self.tag_ids):
                                         ctacte=True
+                                    #if so.create_date < self.opening_date:
+                                        #ctacte=True
                             if ctacte:
                                 pay_name = pay.journal_id.name 
                                 if pay_name not in totales:
