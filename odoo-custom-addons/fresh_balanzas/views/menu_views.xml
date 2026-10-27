@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Top Level Menu (hermano de Configuración, en el raíz de Ventas) -->
+    <menuitem id="menu_balanza_root"
+              name="Balanzas"
+              parent="sale.sale_menu_root"
+              sequence="45"/>
+
+    <!-- Sub Menus -->
+    <menuitem id="menu_balanza_scale"
+              name="Balanzas"
+              parent="menu_balanza_root"
+              action="action_balanza_scale"
+              sequence="10"/>
+
+    <menuitem id="menu_balanza_sync_log"
+              name="Logs de Sincronización"
+              parent="menu_balanza_root"
+              action="action_balanza_sync_log"
+              sequence="20"/>
+</odoo>

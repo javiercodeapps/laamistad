@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Wizard Form -->
+    <record id="view_balanza_sync_wizard_form" model="ir.ui.view">
+        <field name="name">balanza.sync.wizard.form</field>
+        <field name="model">balanza.sync.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group attrs="{'invisible': [('state', '=', 'done')]}">
+                    <group>
+                        <field name="sync_type" readonly="1"/>
+                        <field name="scale_ids" widget="many2many_tags"/>
+                        <field name="product_ids" widget="many2many_tags"
+                               attrs="{'invisible': [('sync_type', '!=', 'product')]}"/>
+                    </group>
+                </group>
+                <group attrs="{'invisible': [('state', '=', 'confirm')]}">
+                    <field name="log" readonly="1" nolabel="1"
+                           placeholder="Resultado de la sincronización"/>
+                </group>
+                <footer>
+                    <button name="action_sync" type="object"
+                            string="Iniciar sincronización" class="btn-primary"
+                            attrs="{'invisible': [('state', '=', 'done')]}"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"
+                            attrs="{'invisible': [('state', '=', 'done')]}"/>
+                    <button string="Cerrar" class="btn-primary" special="cancel"
+                            attrs="{'invisible': [('state', '=', 'confirm')]}"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_balanza_sync_wizard" model="ir.actions.act_window">
+        <field name="name">Sincronizar Balanzas</field>
+        <field name="res_model">balanza.sync.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

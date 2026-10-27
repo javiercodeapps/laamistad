@@ -192,11 +192,14 @@ class SaleOrderQR(models.Model):
             if payment_type == 'MP Link':
                 # Cuando generamos un link de pago la orden la dejamos con el
                 # tipo CTACTE (para que la caja la vea como cuenta corriente
-                # pendiente) y le agregamos los tags CTACTE y MP LINK.
-                self._mp_link_set_ctacte()
-                self.state = 'sent'
-                self.caja_id = caja.id
-                self.date_order = fields.datetime.now()
+                # pendiente) y le agregamos los tags CTACTE y MP LINK. Si ya
+                # está como 'CTACTE Factura' no se le toca nada: solo se le
+                # agrega el tag MP LINK.
+                self._mp_link_prepare_order()
+                if not self._mp_link_is_ctacte_factura():
+                    self.state = 'sent'
+                    self.caja_id = caja.id
+                    self.date_order = fields.datetime.now()
                 return self._mp_link_generate()
             for moves in self.invoice_ids:
                 pay1=self.pay_multiple(moves,self.type_id.payment_journal_id,self.amount_due)
@@ -212,12 +215,14 @@ class SaleOrderQR(models.Model):
             raise UserError(f"No se encontró el Tipos de pedido de venta '{payment_type}'.")
         if payment_type == 'MP Link':
             # Igual que en el flujo de pedidos ya confirmados: el pedido queda
-            # como CTACTE con los tags CTACTE y MP LINK, y recién al cobrarse
-            # el link pasa al tipo MP Link.
-            self._mp_link_set_ctacte()
-            self.state = 'sent'
-            self.caja_id = caja.id
-            self.date_order = fields.datetime.now()
+            # como CTACTE con los tags CTACTE y MP LINK (o solo con el tag
+            # MP LINK si ya está facturado como 'CTACTE Factura'), y recién al
+            # cobrarse el link pasa al tipo MP Link.
+            self._mp_link_prepare_order()
+            if not self._mp_link_is_ctacte_factura():
+                self.state = 'sent'
+                self.caja_id = caja.id
+                self.date_order = fields.datetime.now()
             self.env.cr.commit()
             return self._mp_link_generate()
         _logger.info('%s %s %s %s' % (payment_type,efectivo,context.get('payment_type'),sale_order_type ) )
@@ -288,11 +293,23 @@ class SaleOrderQR(models.Model):
 
         Es el tipo con el que queda guardado el pedido mientras el link está
         pendiente: el resumen de caja toma los pedidos CTACTE como cuenta
-        corriente pendiente de cobro."""
+        corriente pendiente de cobro. Se busca por nombre exacto para no
+        confundirlo con 'CTACTE Factura'."""
         self.ensure_one()
         return self.env['sale.order.type'].search([
-            ('name', 'ilike', 'CTACTE'),
+            ('name', '=ilike', 'CTACTE'),
             ('company_id', '=', self.company_id.id)], limit=1)
+
+    def _mp_link_is_ctacte_factura(self):
+        """Indica si el pedido ya está facturado como cuenta corriente
+        ('CTACTE Factura').
+
+        En ese caso no hay que tocarle el tipo, el estado, la caja ni la
+        fecha: ya está facturado y la caja lo toma como CTACTE pendiente de
+        cobro. Solo corresponde marcarlo con el tag MP LINK."""
+        self.ensure_one()
+        name = (self.type_id.name or '').upper()
+        return 'CTACTE' in name and 'FACTURA' in name
 
     def _mp_link_tags(self):
         """Tags 'CTACTE' y 'MP LINK' (se crean si no existen)."""
@@ -304,18 +321,27 @@ class SaleOrderQR(models.Model):
             tags |= tag
         return tags
 
-    def _mp_link_set_ctacte(self):
-        """Deja la(s) orden(es) guardadas como CTACTE con los tags CTACTE y
-        MP LINK mientras el link de pago está pendiente de cobro.
+    def _mp_link_prepare_order(self):
+        """Deja la(s) orden(es) listas para generar el link de pago.
+
+        - Si el pedido todavía no está facturado como cuenta corriente, pasa
+          al tipo CTACTE y se le agregan los tags CTACTE y MP LINK.
+        - Si ya está facturado como 'CTACTE Factura', no se le cambia nada:
+          solo se le agrega el tag MP LINK.
 
         No se cambia el estado de la orden: eso lo decide cada flujo (alta
         desde el popup o link generado desde el wizard de varias órdenes)."""
         if not self:
             return True
+        self._mp_link_check_not_paid()
         tags = self._mp_link_tags()
+        mp_link_tag = tags.filtered(lambda t: (t.name or '').upper() == 'MP LINK')
         for order in self:
             if 'Consumidor Final' in (order.partner_id.name or ''):
                 raise UserError(_('Debe seleccionar un cliente distinto a consumidor final para CTACTE'))
+            if order._mp_link_is_ctacte_factura():
+                order.tag_ids = [(4, mp_link_tag.id)]
+                continue
             ctacte_type = order._mp_link_ctacte_type()
             if not ctacte_type:
                 raise UserError(_("No se encontró el tipo de pedido 'CTACTE' para la compañía %s.")
@@ -425,8 +451,9 @@ class SaleOrderQR(models.Model):
             raise UserError(_("Debe seleccionar al menos una orden de venta."))
         provider = orders[:1]._mp_link_provider()
         # El pedido queda como CTACTE (con tags CTACTE y MP LINK) hasta que el
-        # link se cobre; recién ahí pasa a MP Link.
-        orders._mp_link_set_ctacte()
+        # link se cobre; si ya está facturado como CTACTE Factura solo se le
+        # agrega el tag MP LINK.
+        orders._mp_link_prepare_order()
         _logger.info('Generando link MP para las órdenes %s' % orders.mapped('name'))
         mp_link = provider.create_order_link(orders)
         _logger.info('Link de pago: %s' % mp_link)
@@ -701,12 +728,25 @@ class SaleOrderQR(models.Model):
             "context": {"default_sale_order_id": self.id},
         }
 
+    def _mp_link_check_not_paid(self):
+        """Los pedidos ya pagos no pueden incluirse en un link de pago.
+
+        Se controla tanto al abrir el wizard de link múltiple como al generar
+        el link desde el popup de un pedido individual, para no cobrar dos
+        veces el mismo pedido."""
+        paid = self.filtered(lambda o: o.payment_status == 'Paid')
+        if paid:
+            raise UserError(_("No se puede generar un link de pago para pedidos "
+                              "ya pagos. Revise: %s") % ", ".join(paid.mapped('name')))
+        return True
+
     def _mp_link_validate_orders(self):
         """Valida que las órdenes puedan agruparse en un único link de pago MP.
 
         Se usa tanto al abrir el wizard (validación previa, antes de mostrar la
         lista) como al generar el link. Se aceptan pedidos enviados ('sent') y
-        confirmados ('sale'); cualquier otro estado se rechaza.
+        confirmados ('sale'); cualquier otro estado se rechaza, igual que los
+        pedidos ya pagos.
         """
         if not self:
             raise UserError(_("Debe seleccionar al menos una orden de venta."))
@@ -715,6 +755,7 @@ class SaleOrderQR(models.Model):
             raise UserError(_("Solo se pueden agrupar pedidos enviados ('Presupuesto enviado') "
                               "o confirmados ('Pedido de venta'). Revise: %s")
                             % ", ".join(invalid_state.mapped('name')))
+        self._mp_link_check_not_paid()
         if len(self.partner_id) > 1:
             raise UserError(_("Todas las órdenes deben ser del mismo cliente. "
                               "Clientes encontrados: %s")

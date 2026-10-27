@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="view_balanza_scale_form" model="ir.ui.view">
+        <field name="name">balanza.scale.form</field>
+        <field name="model">balanza.scale</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="test_connection" type="object"
+                            string="Probar conexión" class="btn-primary"/>
+                    <button name="action_sync_products" type="object"
+                            string="Sinc. Productos"/>
+                    <button name="action_sync_vendors" type="object"
+                            string="Sinc. Vendedores"/>
+                    <button name="action_verify_prices" type="object"
+                            string="Actualizar / Comparar precios" class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nombre de la balanza"/></h1>
+                    </div>
+                    <group>
+                        <group string="Conexión">
+                            <field name="host"/>
+                            <field name="port"/>
+                            <field name="timeout"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Configuración">
+                            <field name="brand"/>
+                            <field name="equipment_number"/>
+                            <field name="department_code"/>
+                            <field name="family_code"/>
+                            <field name="label_code"/>
+                        </group>
+                    </group>
+                    <group string="Sincronización">
+                        <field name="sync_all_products"/>
+                        <field name="product_ids" widget="many2many_tags"
+                               attrs="{'invisible': [('sync_all_products', '=', True)]}"/>
+                        <field name="sync_vendors"/>
+                        <field name="last_sync_product"/>
+                        <field name="last_sync_vendor"/>
+                    </group>
+                    <notebook>
+                        <page string="Logs" name="logs">
+                            <field name="sync_log_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_balanza_scale_tree" model="ir.ui.view">
+        <field name="name">balanza.scale.tree</field>
+        <field name="model">balanza.scale</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="brand"/>
+                <field name="host"/>
+                <field name="port"/>
+                <field name="active"/>
+                <field name="last_sync_product"/>
+                <field name="last_sync_vendor"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_balanza_scale" model="ir.actions.act_window">
+        <field name="name">Balanzas</field>
+        <field name="res_model">balanza.scale</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_balanza_scale_user,balanza.scale.user,model_balanza_scale,,1,1,1,1
+access_balanza_sync_wizard_user,balanza.sync.wizard.user,model_balanza_sync_wizard,,1,1,1,1
+access_balanza_sync_log_user,balanza.sync.log.user,model_balanza_sync_log,,1,1,1,1
+access_balanza_verify_wizard_user,balanza.verify.wizard.user,model_balanza_verify_wizard,,1,1,1,1

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Verify/Update Wizard Form -->
+    <record id="view_balanza_verify_wizard_form" model="ir.ui.view">
+        <field name="name">balanza.verify.wizard.form</field>
+        <field name="model">balanza.verify.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group attrs="{'invisible': [('state', '=', 'done')]}">
+                    <group>
+                        <field name="scale_id"/>
+                        <field name="mode"/>
+                    </group>
+                </group>
+                <group attrs="{'invisible': [('state', '=', 'confirm')]}">
+                    <group>
+                        <field name="total_checked"/>
+                        <field name="updated_count"/>
+                        <field name="mismatch_count"/>
+                    </group>
+                </group>
+                <group attrs="{'invisible': [('state', '=', 'confirm')]}">
+                    <field name="log" readonly="1" nolabel="1"
+                           placeholder="Resultado de la operación"/>
+                </group>
+                <footer>
+                    <button name="action_execute" type="object"
+                            string="Ejecutar" class="btn-primary"
+                            attrs="{'invisible': [('state', '=', 'done')]}"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"
+                            attrs="{'invisible': [('state', '=', 'done')]}"/>
+                    <button string="Cerrar" class="btn-primary" special="cancel"
+                            attrs="{'invisible': [('state', '=', 'confirm')]}"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_balanza_verify_wizard" model="ir.actions.act_window">
+        <field name="name">Actualizar / Comparar Precios</field>
+        <field name="res_model">balanza.verify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
