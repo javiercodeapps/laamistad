@@ -9,7 +9,7 @@ class BalanzaVerifyWizard(models.TransientModel):
     _name = 'balanza.verify.wizard'
     _description = 'Actualizar y verificar precios en balanza'
 
-    scale_id = fields.Many2one('balanza.scale', string='Balanza', required=True)
+    scale_id = fields.Many2many('balanza.scale', string='Balanza', required=True)
     mode = fields.Selection([
         ('verify', 'Solo comparar'),
         ('update', 'Actualizar precios'),
@@ -153,7 +153,7 @@ class BalanzaVerifyWizard(models.TransientModel):
                 except ValueError:
                     scale_price = 0
 
-                odoo_price = int(round((product.list_price or 0.0) * 100))
+                odoo_price = int(round((product.list_price or 0.0) * 10))
                 checked += 1
 
                 if scale_price != odoo_price:
