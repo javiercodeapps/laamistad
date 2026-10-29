@@ -141,7 +141,7 @@ class KretzProtocol(BaseProtocol):
 
         El precio se envía con 2 decimales implícitos (x100).
         """
-        price = int(round(float(plu.get('price') or 0) * 100))
+        price = int(round(float(plu.get('price') or 0) * 10))
         plu_code = int(plu.get('plu_code') or plu['number'])
         return (
             f'{int(plu["number"]):06d}'
