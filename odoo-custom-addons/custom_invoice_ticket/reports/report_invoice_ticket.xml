@@ -212,6 +212,15 @@
                                     <strong>IVA Contenido </strong>
                                     <span t-esc="tax_breakdown['iva_contenido']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                 </div>
+                                <t t-set="isib_caba_aliquot" t-value="o._get_isib_caba_aliquot()"/>
+                                <t t-if="o.company_id.partner_id.state_id.code == 'C'">
+                                    <div class="mt-1" t-if="isib_caba_aliquot">
+                                        <strong>ALÍCUOTA ISIB CABA <t t-esc="isib_caba_aliquot"/>%</strong>
+                                    </div>
+                                    <div t-if="o.company_id.l10n_ar_gross_income_type == 'multilateral'">
+                                        APLICABLE SOBRE INGRESOS BRUTOS ATRIBUIDOS A CABA
+                                    </div>
+                                </t>
                             </div>
                         </t>
                     </t>
@@ -229,6 +238,13 @@
                         Vto CAE:
                         <span t-field="o.afip_auth_code_due"/>
                     </span>
+                    </div>
+
+                    <!-- Leyenda Orientación al Consumidor (solo Provincia de Buenos Aires) -->
+                    <div t-if="o.company_id.partner_id.state_id.code == 'B'"
+                         class="text-center mt-2"
+                         style="font-size: 13px;">
+                        <strong>Orientación al Consumidor Provincia de Buenos Aires 148</strong>
                     </div>
                 </div>
                 <div class="text-center mt-3 font-italic" style="font-size: 10px;">Gracias por su compra</div>

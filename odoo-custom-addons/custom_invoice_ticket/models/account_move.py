@@ -16,6 +16,18 @@ class AccountMove(models.Model):
         )
         return 'data:image/png;base64,' + base64.b64encode(barcode).decode()
 
+    def _get_isib_caba_aliquot(self):
+        """Return the ISIB CABA aliquot (formatted percentage) from the tax
+        'P. IIBB CABA contenido'. Returns False when the tax is not configured."""
+        self.ensure_one()
+        tax = self.env['account.tax'].search([
+            ('company_id', '=', self.company_id.id),
+            ('name', '=', 'P. IIBB CABA contenido'),
+        ], limit=1)
+        if not tax:
+            return False
+        return ('%.2f' % tax.amount).replace('.', ',')
+
     def _get_tax_breakdown(self):
         """Return tax breakdown for Type A or Transparencia Fiscal for Type B/NC/ND."""
         self.ensure_one()
