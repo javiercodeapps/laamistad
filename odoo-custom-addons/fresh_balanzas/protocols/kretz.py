@@ -13,7 +13,21 @@ class KretzProtocol(BaseProtocol):
     EQUIP_TYPE = 'C'
     EQUIP_ID = '01'
 
+    #: Posición del precio dentro del registro PLU (comando 2005/5005).
+    PLU_PRICE_OFFSET = 77
+    PLU_PRICE_SIZE = 6
+    #: Cantidad de dígitos del número de PLU en el registro.
+    PLU_NUMBER_SIZE = 6
+    #: Posiciones extra a explorar al final de la tabla. El comando 5001
+    #: informa la capacidad (ej. 10.000) pero en algunas unidades hay
+    #: registros por encima de ese valor (se verificó un PLU real en la
+    #: posición 10001 de una tabla que informa 10.000).
+    PLU_TABLE_MARGIN = 32
+    #: Código propio: la balanza devolvió un PLU distinto al pedido.
+    CODE_WRONG_PLU = '99'
+
     RESPONSES = {
+        CODE_WRONG_PLU: 'La balanza devolvió un PLU distinto al solicitado',
         '01': 'Comando ejecutado correctamente',
         '02': 'Comando inexistente',
         '10': 'Error de checksum',
@@ -114,9 +128,145 @@ class KretzProtocol(BaseProtocol):
         return code == '01', code, self.RESPONSES.get(code, msg)
 
     def read_plu(self, plu_number):
-        data = f'{int(plu_number):06d}'
-        group, code, msg = self.send_command('5005', data)
+        """Lee un PLU por su número, resolviendo su posición real en la tabla.
+
+        Importante: en la familia Report Nx el dato del comando 5005 es la
+        **posición** del registro en la tabla de PLU (base 0), no el número de
+        PLU. En una balanza real se verificó que pedir la posición 1 devuelve
+        el PLU 2, y la posición 0 devuelve el PLU 1. Por eso se busca la
+        posición por búsqueda binaria y se valida el número del registro
+        devuelto: nunca se compara ni se escribe sobre el artículo equivocado.
+
+        Returns:
+            tuple: (ok: bool, code: str, data: str)
+        """
+        slot = self.find_plu_slot(plu_number)
+        if slot is None:
+            return False, '20', ''
+        ok, code, data = self.read_plu_slot(slot)
+        if not ok:
+            return ok, code, data
+        number = self.plu_number_from_record(data)
+        if number != int(plu_number):
+            _logger.warning(
+                'Posición %s devolvió PLU %s, se pidió %s', slot, number,
+                plu_number,
+            )
+            return False, self.CODE_WRONG_PLU, data
+        return True, code, data
+
+    # --- direccionamiento de PLUs por posición ---------------------------
+    def read_plu_slot(self, slot):
+        """Lee el registro que ocupa ``slot`` (0-based) en la tabla de PLU.
+
+        Returns:
+            tuple: (ok: bool, code: str, data: str)
+        """
+        group, code, msg = self.send_command('5005', f'{int(slot):06d}')
         return code == '01', code, msg
+
+    @classmethod
+    def plu_number_from_record(cls, record):
+        """Extrae el número de PLU de un registro crudo (o None si no se puede)."""
+        if not record or len(record) < cls.PLU_NUMBER_SIZE:
+            return None
+        try:
+            return int(record[:cls.PLU_NUMBER_SIZE])
+        except ValueError:
+            return None
+
+    def plu_count(self):
+        """Cantidad de posiciones de la tabla de PLU (comando 5001).
+
+        Devuelve 0 si la balanza no responde el comando.
+        """
+        group, code, msg = self.send_command('5001', '05')
+        if code != '01' or len(msg) < 8:
+            _logger.warning('Respuesta inesperada al 5001: %s %r', code, msg)
+            return 0
+        try:
+            return int(msg[2:8])
+        except ValueError:
+            return 0
+
+    def find_plu_slot(self, plu_number, max_slot=None):
+        """Busca la posición del registro con el número de PLU indicado.
+
+        La relación posición→número es no decreciente (varios slots pueden
+        apuntar al mismo registro), así que se resuelve con búsqueda binaria:
+        ~14 lecturas por PLU.
+
+        Args:
+            plu_number: número de PLU buscado.
+            max_slot: cantidad de posiciones de la tabla. Si no se indica se
+                consulta con el comando 5001, más un margen.
+
+        Returns:
+            int | None: posición del registro, o None si el PLU no existe.
+        """
+        target = int(plu_number)
+        if max_slot is None:
+            max_slot = self.plu_count() + self.PLU_TABLE_MARGIN
+        hi = int(max_slot) - 1
+        if hi < 0:
+            return None
+
+        lo = 0
+        while lo < hi:
+            mid = (lo + hi) // 2
+            number = self._plu_number_at(mid)
+            if number is None:
+                # Posición sin registro legible. En la Report Nx esto ocurre
+                # al final de la tabla (las posiciones fuera de rango no
+                # devuelven datos), así que se descarta la mitad derecha.
+                hi = mid
+                continue
+            if number < target:
+                lo = mid + 1
+            else:
+                hi = mid
+
+        if self._plu_number_at(lo) == target:
+            return lo
+        return None
+
+    def _plu_number_at(self, slot):
+        ok, _code, data = self.read_plu_slot(slot)
+        return self.plu_number_from_record(data) if ok else None
+
+    def scan_table(self, max_slot=None, progress=None):
+        """Recorre la tabla completa de PLU y devuelve {numero: (slot, registro)}.
+
+        Ojo: cuesta una lectura por posición (en una balanza Report Nx con
+        10.000 posiciones son ~13 minutos), por eso es una operación de
+        mantenimiento y no parte del día a día.
+
+        Args:
+            max_slot: cantidad de posiciones a recorrer (default: comando 5001
+                más un margen).
+            progress: callable(slot, total, encontrados) opcional.
+
+        Returns:
+            dict: {número de PLU: (slot, registro crudo)}
+        """
+        if max_slot is None:
+            max_slot = self.plu_count() + self.PLU_TABLE_MARGIN
+        total = int(max_slot)
+        result = {}
+        for slot in range(total):
+            ok, _code, data = self.read_plu_slot(slot)
+            if ok:
+                number = self.plu_number_from_record(data)
+                if number is not None and number not in result:
+                    result[number] = (slot, data)
+            if progress:
+                progress(slot, total, len(result))
+        return result
+
+    def read_all_plus(self, max_slot=None, progress=None):
+        """Igual que ``scan_table`` pero devuelve sólo {numero: registro}."""
+        table = self.scan_table(max_slot=max_slot, progress=progress)
+        return {number: data for number, (_slot, data) in table.items()}
 
     def upsert_vendor(self, vendor_data):
         data = self._format_vendor_data(vendor_data)

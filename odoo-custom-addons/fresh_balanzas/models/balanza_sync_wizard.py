@@ -219,6 +219,7 @@ class BalanzaSyncWizard(models.TransientModel):
         """Verifica precios después de sincronizar (método interno)."""
         try:
             proto = scale._get_protocol()
+            slot_map = scale._get_slot_map()
             with proto:
                 products = self.env['product.product'].search([
                     ('default_code', '!=', False),
@@ -233,8 +234,10 @@ class BalanzaSyncWizard(models.TransientModel):
                         continue
 
                     try:
-                        ok, code, data = proto.read_plu(int(product.default_code))
-                        if not ok or not data:
+                        ok, _code, data = scale._read_plu(
+                            proto, int(product.default_code), slot_map
+                        )
+                        if not ok or not data or len(data) < 83:
                             continue
 
                         # La balanza almacena el precio como entero escalado
@@ -250,10 +253,16 @@ class BalanzaSyncWizard(models.TransientModel):
                     except Exception:
                         pass
 
-                if mismatches == 0:
-                    return f'{scale.name}: ✓ {checked} verificados, sin diferencias'
-                else:
-                    return f'{scale.name}: ⚠ {mismatches} diferencias de {checked} verificados'
+            if slot_map != scale._get_slot_map():
+                scale.write({
+                    'plu_slot_map': slot_map,
+                    'plu_slot_map_date': fields.Datetime.now(),
+                })
+
+            if mismatches == 0:
+                return f'{scale.name}: ✓ {checked} verificados, sin diferencias'
+            else:
+                return f'{scale.name}: ⚠ {mismatches} diferencias de {checked} verificados'
 
         except Exception as e:
             return f'{scale.name}: ✗ Error en verificación: {str(e)}'

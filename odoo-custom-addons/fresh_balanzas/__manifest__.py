@@ -1,6 +1,6 @@
 {
     'name': 'Fresh Balanzas',
-    'version': '16.0.1.0.0',
+    'version': '16.0.1.1.0',
     'category': 'Sales',
     'summary': 'Conector de balanzas comerciales vía TCP/IP',
     'description': """
@@ -20,6 +20,7 @@
         'views/balanza_verify_wizard_views.xml',
         'views/balanza_sync_log_views.xml',
         'views/res_partner_views.xml',
+        'views/product_template_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,

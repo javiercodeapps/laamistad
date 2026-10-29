@@ -50,6 +50,17 @@ class BalanzaScale(models.Model):
     last_sync_vendor = fields.Datetime('Última sinc. vendedores')
     sync_log_ids = fields.One2many('balanza.sync.log', 'scale_id', string='Logs de sincronización')
 
+    plu_slot_map = fields.Json(
+        'Índice de posiciones PLU', copy=False, default=dict,
+        help='Cache número de PLU → posición en la tabla de la balanza. '
+             'En la familia Kretz Report Nx el comando 5005 direcciona por '
+             'posición y no por número, así que este índice evita buscar '
+             'cada vez. Se reconstruye con "Reconstruir índice de PLU".'
+    )
+    plu_slot_map_date = fields.Datetime(
+        'Índice actualizado', readonly=True, copy=False,
+    )
+
     _sql_constraints = [
         ('name_unique', 'UNIQUE(name)', 'El nombre de la balanza debe ser único'),
     ]
@@ -100,6 +111,91 @@ class BalanzaScale(models.Model):
                 equip_id=self.equipment_number,
             )
         raise ValueError(f'Marca no soportada: {self.brand}')
+
+    # --- acceso a PLUs ---------------------------------------------------
+    def _get_slot_map(self):
+        """Copia del índice número de PLU → posición en la tabla."""
+        self.ensure_one()
+        return dict(self.plu_slot_map or {})
+
+    def _resolve_plu_slot(self, proto, plu_number, slot_map=None):
+        """Posición del PLU en la tabla, usando el índice si lo tiene."""
+        self.ensure_one()
+        cache = slot_map if slot_map is not None else self._get_slot_map()
+        slot = cache.get(str(int(plu_number)))
+        if slot is not None:
+            return int(slot)
+        return proto.find_plu_slot(int(plu_number))
+
+    def _read_plu(self, proto, plu_number, slot_map=None):
+        """Lee un PLU por número resolviendo su posición real en la tabla.
+
+        Valida que la balanza devuelva el PLU pedido. Si la posición cacheada
+        quedó vieja (se agregó o borró un PLU) la descarta y vuelve a buscarla,
+        así nunca se compara ni se escribe sobre el artículo equivocado.
+
+        Args:
+            proto: protocolo conectado.
+            plu_number: número de PLU.
+            slot_map: dict número→posición a usar/completar. Si es None se usa
+                una copia del índice guardado (los cambios no se persisten).
+
+        Returns:
+            tuple: (ok: bool, code: str, data: str)
+        """
+        self.ensure_one()
+        number = int(plu_number)
+        key = str(number)
+        cache = slot_map if slot_map is not None else self._get_slot_map()
+
+        slot = cache.get(key)
+        if slot is not None:
+            ok, code, data = proto.read_plu_slot(int(slot))
+            if ok and proto.plu_number_from_record(data) == number:
+                return ok, code, data
+            cache.pop(key, None)
+
+        slot = proto.find_plu_slot(number)
+        if slot is None:
+            return False, '20', ''
+        ok, code, data = proto.read_plu_slot(slot)
+        if not ok:
+            return ok, code, data
+        if proto.plu_number_from_record(data) != number:
+            return False, proto.CODE_WRONG_PLU, data
+        cache[key] = slot
+        return True, code, data
+
+    def action_rebuild_plu_index(self):
+        """Recorre la tabla de PLU y reconstruye el índice de posiciones.
+
+        Es lento por diseño del protocolo: una lectura por posición. En una
+        Report Nx con 10.000 posiciones son ~13 minutos, así que conviene
+        ejecutarlo fuera del horario de atención.
+        """
+        self.ensure_one()
+        proto = self._get_protocol()
+        with proto:
+            table = proto.scan_table()
+        slot_map = {
+            str(number): slot for number, (slot, _data) in table.items()
+        }
+        self.write({
+            'plu_slot_map': slot_map,
+            'plu_slot_map_date': fields.Datetime.now(),
+        })
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Índice reconstruido',
+                'message': (
+                    f'{len(slot_map)} PLUs indexados en {self.name}.'
+                ),
+                'sticky': False,
+                'type': 'success',
+            },
+        }
 
     def test_connection(self):
         """Prueba la conexión con la balanza."""
@@ -176,7 +272,7 @@ class BalanzaScale(models.Model):
         """Abre el wizard de verificación de precios."""
         self.ensure_one()
         wizard = self.env['balanza.verify.wizard'].create({
-            'scale_id': self.id,
+            'scale_id': [(6, 0, self.ids)],
         })
         return {
             'type': 'ir.actions.act_window',

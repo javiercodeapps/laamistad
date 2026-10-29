@@ -203,5 +203,135 @@ class TestKretzProtocol(unittest.TestCase):
         self.assertEqual(cls.EQUIP_ID, '01')
 
 
+class FakeKretzScale:
+    """Balanza simulada con la semántica real del comando 5005.
+
+    El dato del 5005 es la POSICIÓN del registro en la tabla (0-based), y la
+    relación posición→número es no decreciente (varias posiciones pueden
+    apuntar al mismo registro). Es lo que se observó en una Report Nx real.
+    """
+
+    def __init__(self, slot_numbers, count=None):
+        self.slot_numbers = list(slot_numbers)
+        self.count = count if count is not None else len(self.slot_numbers)
+        self.reads = 0
+
+    def record_for(self, number):
+        return (
+            f'{number:06d}'
+            '001001'
+            + f'{"PLU " + str(number):26s}'[:26]
+            + ' ' * 26
+            + f'{number:05d}'
+            + 'N' + '0000000'
+            + f'{number * 100:06d}'
+            + '0' * 52
+        )
+
+    def send_command(self, command, data=''):
+        if command == '5001':
+            return '05', '01', '05' + f'{self.count:06d}'
+        if command == '5005':
+            self.reads += 1
+            slot = int(data)
+            if slot >= len(self.slot_numbers) or self.slot_numbers[slot] is None:
+                return '05', '20', ''
+            return '05', '01', self.record_for(self.slot_numbers[slot])
+        raise AssertionError(f'comando inesperado {command}')
+
+
+class TestKretzPluAddressing(unittest.TestCase):
+    """Regresión: el 5005 direcciona por posición, no por número de PLU."""
+
+    def setUp(self):
+        KretzProtocol = _load_kretz_protocol()
+        self.KretzProtocol = KretzProtocol
+
+    def make(self, slot_numbers):
+        proto = self.KretzProtocol.__new__(self.KretzProtocol)
+        fake = FakeKretzScale(slot_numbers)
+        proto.send_command = fake.send_command
+        proto.plu_count = lambda: fake.count
+        return proto, fake
+
+    def test_positional_semantics_reproduce_off_by_one(self):
+        """Un 5005 crudo con el número devuelve el registro siguiente."""
+        proto, fake = self.make([1, 2, 3, 4])
+        ok, code, data = proto.read_plu_slot(1)
+        self.assertTrue(ok)
+        self.assertEqual(data[:6], '000002')
+
+    def test_find_plu_slot_dense(self):
+        proto, _fake = self.make([1, 2, 3, 4])
+        self.assertEqual(proto.find_plu_slot(1), 0)
+        self.assertEqual(proto.find_plu_slot(4), 3)
+
+    def test_find_plu_slot_with_gaps_and_duplicates(self):
+        # posiciones: 0→2, 1→3, 2..4→4, 5→7, 6→9
+        proto, _fake = self.make([2, 3, 4, 4, 4, 7, 9])
+        self.assertEqual(proto.find_plu_slot(2), 0)
+        self.assertEqual(proto.find_plu_slot(4), 2)
+        self.assertEqual(proto.find_plu_slot(7), 5)
+        self.assertEqual(proto.find_plu_slot(9), 6)
+
+    def test_find_plu_slot_missing(self):
+        proto, _fake = self.make([2, 3, 4, 4, 4, 7, 9])
+        self.assertIsNone(proto.find_plu_slot(5))
+        self.assertIsNone(proto.find_plu_slot(1))
+        self.assertIsNone(proto.find_plu_slot(10))
+
+    def test_binary_search_cost_is_logarithmic(self):
+        slots = list(range(1, 1001))
+        proto, fake = self.make(slots)
+        self.assertEqual(proto.find_plu_slot(777), 776)
+        self.assertLessEqual(fake.reads, 15, 'la búsqueda debe ser logarítmica')
+
+    def test_read_plu_returns_requested_number(self):
+        proto, _fake = self.make([2, 3, 4, 4, 4, 7, 9])
+        ok, _code, data = proto.read_plu(4)
+        self.assertTrue(ok)
+        self.assertEqual(proto.plu_number_from_record(data), 4)
+        ok, _code, data = proto.read_plu(9)
+        self.assertTrue(ok)
+        self.assertEqual(proto.plu_number_from_record(data), 9)
+
+    def test_read_plu_missing_returns_20(self):
+        proto, _fake = self.make([2, 3, 4, 4, 4, 7, 9])
+        ok, code, data = proto.read_plu(5)
+        self.assertFalse(ok)
+        self.assertEqual(code, '20')
+        self.assertEqual(data, '')
+
+    def test_read_plu_rejects_wrong_number(self):
+        """Si la balanza devuelve otro PLU hay que abortar, no escribir."""
+        proto, _fake = self.make([2, 3, 4])
+        # La búsqueda resuelve la posición 0, pero ahí está el PLU 2: si se
+        # pide el 3 la lectura tiene que rechazarse en vez de devolver datos
+        # de otro artículo.
+        proto.find_plu_slot = lambda number, max_slot=None: 0
+        ok, code, _data = proto.read_plu(3)
+        self.assertFalse(ok)
+        self.assertEqual(code, self.KretzProtocol.CODE_WRONG_PLU)
+
+    def test_scan_table_dedupes(self):
+        proto, fake = self.make([2, 3, 4, 4, 4, 7, 9])
+        table = proto.scan_table(max_slot=7)
+        self.assertEqual(sorted(table), [2, 3, 4, 7, 9])
+        self.assertEqual(table[4][0], 2)   # primera posición del 4
+        self.assertEqual(fake.reads, 7)    # una lectura por posición
+
+    def test_scan_table_reports_progress(self):
+        proto, _fake = self.make([1, 2, 3])
+        seen = []
+        proto.scan_table(max_slot=3,
+                         progress=lambda slot, total, found: seen.append(found))
+        self.assertEqual(len(seen), 3)
+        self.assertEqual(seen[-1], 3)
+
+    def test_price_offset_constant(self):
+        self.assertEqual(self.KretzProtocol.PLU_PRICE_OFFSET, 77)
+        self.assertEqual(self.KretzProtocol.PLU_PRICE_SIZE, 6)
+
+
 if __name__ == '__main__':
     unittest.main()

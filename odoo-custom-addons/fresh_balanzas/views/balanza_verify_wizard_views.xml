@@ -9,7 +9,8 @@
                 <field name="state" invisible="1"/>
                 <group attrs="{'invisible': [('state', '=', 'done')]}">
                     <group>
-                        <field name="scale_id"/>
+                        <field name="scale_id" widget="many2many_tags"/>
+                        <field name="product_ids" widget="many2many_tags"/>
                         <field name="mode"/>
                     </group>
                 </group>

@@ -15,6 +15,10 @@
                             string="Sinc. Vendedores"/>
                     <button name="action_verify_prices" type="object"
                             string="Actualizar / Comparar precios" class="btn-secondary"/>
+                    <button name="action_rebuild_plu_index" type="object"
+                            string="Reconstruir índice de PLU"
+                            groups="base.group_system"
+                            confirm="Recorre las 10.000 posiciones de la tabla de PLU, una lectura por posición (puede tardar ~13 minutos). ¿Continuar?"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -43,6 +47,15 @@
                         <field name="sync_vendors"/>
                         <field name="last_sync_product"/>
                         <field name="last_sync_vendor"/>
+                    </group>
+                    <group string="Índice de PLU">
+                        <field name="plu_slot_map_date"/>
+                        <div colspan="2" class="text-muted">
+                            El índice número de PLU → posición en la tabla se
+                            construye solo, la primera vez que se lee cada
+                            artículo. "Reconstruir índice de PLU" lo genera
+                            completo (lento: una lectura por posición).
+                        </div>
                     </group>
                     <notebook>
                         <page string="Logs" name="logs">
