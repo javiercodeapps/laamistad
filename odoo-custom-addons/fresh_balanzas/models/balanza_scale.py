@@ -1,8 +1,11 @@
 import logging
 
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
+
+MAX_PRICE_DIGITS = 6
 
 
 class BalanzaScale(models.Model):
@@ -24,6 +27,12 @@ class BalanzaScale(models.Model):
     department_code = fields.Integer('Código de departamento', default=1)
     family_code = fields.Integer('Código de familia', default=0)
     label_code = fields.Integer('Código de etiqueta', default=1)
+    price_decimals = fields.Integer(
+        'Decimales de precio', default=2, required=True,
+        help='Cantidad de decimales con la que la balanza almacena el precio '
+             '(0 a 4). El precio se envía como entero: precio × 10^decimales. '
+             'Ej: con 2 decimales, 19.99 se envía como 019900.'
+    )
     equipment_number = fields.Integer(
         'Número de equipo', default=1,
         help='ID del equipo en la red Kretz (01-32). Debe coincidir con el '
@@ -44,6 +53,42 @@ class BalanzaScale(models.Model):
     _sql_constraints = [
         ('name_unique', 'UNIQUE(name)', 'El nombre de la balanza debe ser único'),
     ]
+
+    @api.constrains('price_decimals')
+    def _check_price_decimals(self):
+        for scale in self:
+            if not 0 <= scale.price_decimals <= 4:
+                raise ValidationError(
+                    'Los decimales de precio deben estar entre 0 y 4.'
+                )
+
+    def _get_price_factor(self):
+        """Factor de escala del precio en la balanza (10^decimales)."""
+        self.ensure_one()
+        return 10 ** self.price_decimals
+
+    def _price_to_scale_raw(self, price):
+        """Convierte un precio de Odoo al entero que almacena la balanza."""
+        self.ensure_one()
+        return int(round(float(price or 0.0) * self._get_price_factor()))
+
+    def _raw_to_price_string(self, raw_price):
+        """Formatea un precio crudo de la balanza para mostrarlo en logs."""
+        self.ensure_one()
+        raw_price = int(raw_price or 0)
+        sign = '-' if raw_price < 0 else ''
+        raw_price = abs(raw_price)
+        if self.price_decimals == 0:
+            return f'{sign}{raw_price}'
+        factor = self._get_price_factor()
+        return (
+            f'{sign}{raw_price // factor}'
+            f'.{raw_price % factor:0{self.price_decimals}d}'
+        )
+
+    def _price_fits(self, raw_price):
+        """Indica si el precio crudo entra en el campo de 6 dígitos."""
+        return 0 <= raw_price < 10 ** MAX_PRICE_DIGITS
 
     def _get_protocol(self):
         """Retorna la instancia del protocolo según la marca."""

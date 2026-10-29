@@ -89,12 +89,39 @@ class TestKretzProtocol(unittest.TestCase):
         self.assertIn('P', data)
 
     def test_plu_format_price_scaled_100(self):
-        """El precio se envía con 2 decimales implícitos (x100)."""
+        """Por defecto el precio se envía con 2 decimales implícitos (x100)."""
         data = self.proto._format_plu_data({
             'number': 1,
             'price': 199.0,
         })
         self.assertEqual(data[77:83], '019900')
+
+    def test_plu_format_price_decimals_configurable(self):
+        """``price_decimals`` define la escala del precio enviado."""
+        cases = [
+            (0, 199, '000199'),
+            (1, 199.5, '001995'),
+            (2, 199.5, '019950'),
+            (3, 19.5, '019500'),
+        ]
+        for decimals, price, expected in cases:
+            with self.subTest(decimals=decimals):
+                data = self.proto._format_plu_data({
+                    'number': 1,
+                    'price': price,
+                    'price_decimals': decimals,
+                })
+                self.assertEqual(data[77:83], expected)
+                self.assertEqual(len(data), 135)
+
+    def test_plu_format_alt_price_uses_same_decimals(self):
+        data = self.proto._format_plu_data({
+            'number': 1,
+            'price': 10.0,
+            'alt_price': 12.5,
+            'price_decimals': 3,
+        })
+        self.assertEqual(data[83:89], '012500')
 
     def test_plu_format_matches_itegra_log(self):
         """Regression: un PLU real del log de iTegra debe reproducirse igual.

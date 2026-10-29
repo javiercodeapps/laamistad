@@ -136,8 +136,19 @@ class BalanzaSyncWizard(models.TransientModel):
                     'description': (product.name or '')[:26],
                     'plu_type': self._get_plu_type(product),
                     'price': product.list_price or 0.0,
+                    'price_decimals': scale.price_decimals,
                     'label_code': scale.label_code,
                 }
+
+                raw_price = scale._price_to_scale_raw(plu_data['price'])
+                if not scale._price_fits(raw_price):
+                    errors += 1
+                    lines.append(
+                        f'ERROR {product.default_code}: precio '
+                        f'{plu_data["price"]:.{scale.price_decimals}f} no entra '
+                        f'en 6 dígitos con {scale.price_decimals} decimales'
+                    )
+                    continue
 
                 ok, code, msg = proto.upsert_plu(plu_data)
                 if ok:
@@ -226,9 +237,12 @@ class BalanzaSyncWizard(models.TransientModel):
                         if not ok or not data:
                             continue
 
-                        # La balanza almacena el precio con 2 decimales implícitos
+                        # La balanza almacena el precio como entero escalado
+                        # según los decimales configurados en la balanza
                         scale_price = int(data[77:83])
-                        odoo_price = int(round((product.list_price or 0.0) * 100))
+                        odoo_price = scale._price_to_scale_raw(
+                            product.list_price
+                        )
                         checked += 1
 
                         if scale_price != odoo_price:

@@ -139,9 +139,14 @@ class KretzProtocol(BaseProtocol):
     def _format_plu_data(self, plu):
         """Formatea un PLU según el layout Kretz 2005 (validado contra logs de iTegra).
 
-        El precio se envía con 2 decimales implícitos (x100).
+        El precio se envía con los decimales indicados en ``price_decimals``
+        (por defecto 2, es decir x100).
         """
-        price = int(round(float(plu.get('price') or 0) * 10))
+        decimals = plu.get('price_decimals')
+        decimals = 2 if decimals is None else int(decimals)
+        factor = 10 ** decimals
+        price = int(round(float(plu.get('price') or 0) * factor))
+        alt_price = int(round(float(plu.get('alt_price') or 0) * factor))
         plu_code = int(plu.get('plu_code') or plu['number'])
         return (
             f'{int(plu["number"]):06d}'
@@ -153,7 +158,7 @@ class KretzProtocol(BaseProtocol):
             f'{plu.get("plu_type", "P"):1s}'
             f'{int(plu.get("fixed_value", 0)):07d}'
             f'{price:06d}'
-            f'{int(plu.get("alt_price", 0) * 100):06d}'
+            f'{alt_price:06d}'
             f'{int(plu.get("status", 1)):06d}'
             f'{int(plu.get("tax_1", 0)):06d}'
             f'{int(plu.get("tax_2", 0)):06d}'

@@ -30,6 +30,7 @@
                         <group string="Configuración">
                             <field name="brand"/>
                             <field name="equipment_number"/>
+                            <field name="price_decimals"/>
                             <field name="department_code"/>
                             <field name="family_code"/>
                             <field name="label_code"/>

@@ -73,9 +73,10 @@ class BalanzaVerifyWizard(models.TransientModel):
     def _update_prices(self, proto, scale):
         """Actualiza precios en la balanza.
 
-        Lee cada PLU, reemplaza solo el campo precio (pos 77-83, escala x100)
-        y reenvía el registro completo. El resto del registro (nombre, depto,
-        impuestos, etc.) queda tal como está configurado en la balanza.
+        Lee cada PLU, reemplaza solo el campo precio (pos 77-83, escalado
+        según los decimales configurados en la balanza) y reenvía el registro
+        completo. El resto del registro (nombre, depto, impuestos, etc.) queda
+        tal como está configurado en la balanza.
         """
         lines = []
         updated = 0
@@ -91,7 +92,16 @@ class BalanzaVerifyWizard(models.TransientModel):
                     not_found += 1
                     continue
 
-                new_price = int(round((product.list_price or 0.0) * 100))
+                new_price = scale._price_to_scale_raw(product.list_price)
+                if not scale._price_fits(new_price):
+                    errors += 1
+                    lines.append(
+                        f'ERROR PLU {product.default_code}: precio '
+                        f'{product.list_price or 0.0:.{scale.price_decimals}f} '
+                        f'no entra en 6 dígitos con {scale.price_decimals} '
+                        f'decimales'
+                    )
+                    continue
                 try:
                     old_price = int(data[77:83])
                 except ValueError:
@@ -107,7 +117,8 @@ class BalanzaVerifyWizard(models.TransientModel):
                     updated += 1
                     lines.append(
                         f'ACTUALIZADO PLU {product.default_code}: '
-                        f'{old_price / 100:.2f} -> {new_price / 100:.2f} | '
+                        f'{scale._raw_to_price_string(old_price)} -> '
+                        f'{scale._raw_to_price_string(new_price)} | '
                         f'{product.name}'
                     )
                 else:
@@ -133,7 +144,7 @@ class BalanzaVerifyWizard(models.TransientModel):
         }
 
     def _compare_prices(self, proto, scale):
-        """Compara precios de la balanza con Odoo (escala x100)."""
+        """Compara precios de la balanza con Odoo (escala según decimales)."""
         lines = []
         mismatches = 0
         checked = 0
@@ -147,21 +158,21 @@ class BalanzaVerifyWizard(models.TransientModel):
                     not_found += 1
                     continue
 
-                # Precio de la balanza (pos 77-83, 2 decimales implícitos)
+                # Precio de la balanza (pos 77-83, entero escalado)
                 try:
                     scale_price = int(data[77:83])
                 except ValueError:
                     scale_price = 0
 
-                odoo_price = int(round((product.list_price or 0.0) * 10))
+                odoo_price = scale._price_to_scale_raw(product.list_price)
                 checked += 1
 
                 if scale_price != odoo_price:
                     mismatches += 1
                     lines.append(
                         f'DIFERENCIA PLU {product.default_code}: '
-                        f'balanza={scale_price / 100:.2f} | '
-                        f'odoo={odoo_price / 100:.2f} | '
+                        f'balanza={scale._raw_to_price_string(scale_price)} | '
+                        f'odoo={scale._raw_to_price_string(odoo_price)} | '
                         f'{product.name}'
                     )
             except Exception as e:
