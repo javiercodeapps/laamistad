@@ -182,7 +182,12 @@ class SaleOrderQR(models.Model):
         sale_order_type = self.env["sale.order.type"].search([("name", "ilike", payment_type),("company_id","=",self.company_id.id)], limit=1)
         if self.state == 'sale':
             _logger.info('Procesando pago')
-            if sale_order_type:
+            # No pisar el tipo del pedido con el de 'MP Link' antes de
+            # prepararlo: si ya está facturado como 'CTACTE Factura',
+            # _mp_link_prepare_order debe reconocerlo para no cambiarlo (ni
+            # devolverlo a 'Presupuesto enviado'); si no lo está, es ese mismo
+            # método el que lo pasa a CTACTE.
+            if sale_order_type and payment_type != 'MP Link':
                 self.type_id = sale_order_type.id
             provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('state','=','enabled'),('company_id.id','=',self.company_id.id)],limit=1)
             if payment_type == 'MP QR' and provider:
