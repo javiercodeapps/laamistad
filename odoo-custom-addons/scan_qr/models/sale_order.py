@@ -1,4 +1,5 @@
 from odoo import models, fields, api, _, SUPERUSER_ID
+from odoo.tools import float_compare
 from datetime import datetime, timedelta
 from odoo.exceptions import UserError, ValidationError
 import time
@@ -9,6 +10,18 @@ _logger = logging.getLogger(__name__)
 # Bloquear autozorizaciones del encargado cuando el pedido esta enviado y facturado 
 # Bloquear autizacion de caja cerrada
 # 
+
+
+def _mp_link_reference_key(value):
+    """Normaliza una referencia externa de Mercado Pago para compararla.
+
+    Mercado Pago devuelve la referencia tal cual se envió, pero puede llegar
+    envuelta en comillas (repr/JSON) o con espacios distintos; se comparan los
+    nombres de las órdenes sin importar mayúsculas, comillas ni espacios.
+    """
+    names = [n.strip().strip('"\'').strip().upper()
+             for n in str(value or '').split(',')]
+    return frozenset(n for n in names if n)
 
 
 class SaleOrderQR(models.Model):
@@ -511,15 +524,14 @@ class SaleOrderQR(models.Model):
             processed = self.pay_mp_link({
                 'external_reference': reference,
                 'payment_id': approved.get('id'),
-                'status': approved.get('status'),
             })
             if processed:
                 return self._mp_link_notify_action(
                     _('El pago de Mercado Pago fue confirmado y se registró correctamente.'),
                     'success', reload=True)
             return self._mp_link_notify_action(
-                _('Mercado Pago informó el pago como aprobado, pero no se pudo '
-                  'completar el registro. Revise el chatter de las órdenes.'),
+                _('Mercado Pago no confirmó el pago del link o no se pudo '
+                  'registrar. Revise el chatter de las órdenes.'),
                 'warning', reload=True)
         pending = next((p for p in payments if p.get('status') in (
             'pending', 'in_process', 'authorized')), None)
@@ -562,7 +574,6 @@ class SaleOrderQR(models.Model):
             processed = self.pay_mp_link({
                 'external_reference': reference,
                 'payment_id': approved.get('id'),
-                'status': approved.get('status'),
             })
             if processed:
                 return self._mp_link_notify_action(
@@ -570,8 +581,8 @@ class SaleOrderQR(models.Model):
                       'correctamente. No se regeneró el link.'),
                     'success', reload=True)
             return self._mp_link_notify_action(
-                _('El pago ya ingresó en Mercado Pago, pero no se pudo completar '
-                  'el registro. Revise el chatter de las órdenes.'),
+                _('Mercado Pago no confirmó el pago del link o no se pudo '
+                  'registrar. Revise el chatter de las órdenes.'),
                 'warning', reload=True)
         pending = next((p for p in payments if p.get('status') in (
             'pending', 'in_process', 'authorized')), None)
@@ -803,11 +814,21 @@ class SaleOrderQR(models.Model):
         }
 
     def pay_mp_link(self, data):
-        """Procesa el retorno de éxito de un link de pago de Mercado Pago.
-        Verifica el pago contra la API de MP, factura las órdenes del
-        external_reference (una o varias separadas por coma) y las paga con
-        el diario de pago del tipo de pedido. Cuando quedan pagadas avisa en
-        el canal '<código de la compañía> Pagos link'."""
+        """Procesa el retorno de un link de pago de Mercado Pago.
+
+        El estado del pago NUNCA se toma de los parámetros recibidos (la URL de
+        retorno es pública y se puede falsificar): se consulta el pago en la
+        API de Mercado Pago y se valida contra las órdenes. Si no se puede
+        verificar (sin id de pago, pago inexistente, error de la API, importe o
+        referencia que no coinciden) NO se factura.
+
+        Factura las órdenes del external_reference (una o varias separadas por
+        coma) y las paga con el diario de pago del tipo de pedido. Cuando quedan
+        pagadas avisa en el canal '<código de la compañía> Pagos link'.
+
+        Devuelve True solo si el pago quedó registrado (o ya lo estaba);
+        False si no se pudo verificar o no se pudo registrar.
+        """
         data = data or {}
         external_reference = data.get('external_reference') or ''
         payment_id = data.get('payment_id') or data.get('collection_id')
@@ -816,34 +837,30 @@ class SaleOrderQR(models.Model):
         names = [n.strip().strip('"\'').strip() for n in external_reference.split(',')]
         names = [n for n in names if n]
         if not names:
-            _logger.warning('MP success sin external_reference: %s' % data)
+            _logger.warning('MP link sin external_reference: %s' % data)
             return False
         orders = self.env['sale.order'].sudo().search([('name', 'in', names)])
         if not orders:
-            _logger.warning('MP success: no se encontraron órdenes para %s' % external_reference)
+            _logger.warning('MP link: no se encontraron órdenes para %s' % external_reference)
             return False
-        # Verifico el estado real del pago contra la API de Mercado Pago
-        # (no confío en los parámetros de la URL, que pueden ser falsificados)
-        status = data.get('status')
-        provider = self.env['payment_mercadopago_point.mercadopago'].sudo().search([
-            ('company_id', '=', orders[:1].company_id.id)], limit=1)
-        if payment_id and provider and payment_id != 'TEST':
-            try:
-                status = provider.get_payment_status(orders[:1], payment_id)
-            except Exception:
-                _logger.exception('MP success: no se pudo verificar el pago %s' % payment_id)
-        _logger.info('MP success: reference=%s payment_id=%s status=%s' % (external_reference, payment_id, status))
-        if status != 'approved':
-            orders.message_post(body='Mercado Pago: el link devolvió el estado %s (pago %s). No se facturó.' % (status, payment_id))
+        # Verifico el pago contra la API de Mercado Pago (no confío en los
+        # parámetros de la URL, que pueden ser falsificados). Si no se puede
+        # verificar, no se procesa nada.
+        payment = orders._mp_link_verify_payment(payment_id, external_reference)
+        if not payment:
             return False
+        _logger.info('MP link: reference=%s payment_id=%s status=%s'
+                     % (external_reference, payment_id, payment.get('status')))
         pagadas = self.env['sale.order'].sudo()
+        error = False
         try:
             # El link es un ÚNICO pago: un solo savepoint para todas las órdenes
             with self.env.cr.savepoint():
                 if orders._mp_link_invoice_and_pay():
                     pagadas = orders
         except Exception:
-            _logger.exception('MP success: error al facturar/pagar las órdenes %s'
+            error = True
+            _logger.exception('MP link: error al facturar/pagar las órdenes %s'
                               % ', '.join(orders.mapped('name')))
             orders.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise las órdenes.')
         if pagadas:
@@ -853,7 +870,105 @@ class SaleOrderQR(models.Model):
             mp_link_type = pagadas[:1]._mp_link_type()
             if mp_link_type:
                 pagadas.write({"type_id": mp_link_type.id})
-        return True
+            return True
+        if error:
+            return False
+        # No quedaba nada por pagar: si las órdenes ya están pagas, el pago ya
+        # estaba registrado (por ejemplo, si se recargó la URL de éxito).
+        if all(o.payment_status == 'Paid' for o in orders):
+            _logger.info('MP link: el pago %s ya estaba registrado en %s'
+                         % (payment_id, ', '.join(orders.mapped('name'))))
+            return True
+        orders.message_post(body='Mercado Pago: el pago %s está aprobado, pero no se '
+                                 'encontraron facturas impagas para registrar el cobro.' % payment_id)
+        return False
+
+    def _mp_link_payment_warning(self, message):
+        """Deja constancia en el chatter de las órdenes de un pago de Mercado
+        Pago que no se pudo verificar o registrar."""
+        _logger.warning('MP link: %s' % message)
+        for order in self:
+            order.message_post(body='Mercado Pago: %s' % message)
+
+    def _mp_link_verify_payment(self, payment_id, external_reference=None):
+        """Consulta el pago en Mercado Pago y lo valida contra estas órdenes.
+
+        Devuelve el diccionario del pago SOLO si está aprobado, corresponde a
+        la referencia externa del link y cubre el total de las órdenes. Ante
+        cualquier duda devuelve ``{}`` (fail closed) y deja el detalle en el
+        log y en el chatter de las órdenes: un pago sin verificar no se
+        factura ni se cobra.
+        """
+        if not self:
+            return {}
+        orders = self.sudo()
+        company = orders[:1].company_id
+        payment_id = str(payment_id or '').strip()
+        provider = self.env['payment_mercadopago_point.mercadopago'].sudo().search([
+            ('company_id', '=', company.id)], limit=1)
+        if not provider:
+            orders._mp_link_payment_warning(
+                'no se pudo verificar el pago %s porque la compañía %s no tiene '
+                'configuración de Mercado Pago.' % (payment_id or '-', company.name))
+            return {}
+        if not payment_id or payment_id.upper() == 'TEST':
+            orders._mp_link_payment_warning(
+                'no se recibió un identificador de pago válido (%s): no se facturó. '
+                'Verifique el cobro en Mercado Pago.' % (payment_id or '-'))
+            return {}
+        try:
+            payment = provider.get_payment(payment_id)
+        except Exception:
+            _logger.exception('MP link: no se pudo consultar el pago %s' % payment_id)
+            orders._mp_link_payment_warning(
+                'no se pudo consultar el pago %s en Mercado Pago: no se facturó.'
+                % payment_id)
+            return {}
+        if not payment:
+            orders._mp_link_payment_warning(
+                'Mercado Pago no devolvió datos del pago %s: no se facturó.'
+                % payment_id)
+            return {}
+        status = payment.get('status')
+        if status != 'approved':
+            orders._mp_link_payment_warning(
+                'Mercado Pago informa el pago %s en estado %s: no se facturó.'
+                % (payment_id, status or '-'))
+            return {}
+        # El pago tiene que ser de ESTE link: mismo conjunto de órdenes
+        if external_reference is None:
+            external_reference = ', '.join(orders.mapped('name'))
+        if _mp_link_reference_key(payment.get('external_reference')) != \
+                _mp_link_reference_key(external_reference):
+            orders._mp_link_payment_warning(
+                'el pago %s es de la referencia "%s" y no de este link ("%s"): '
+                'no se facturó.' % (payment_id,
+                                    payment.get('external_reference') or '-',
+                                    external_reference))
+            return {}
+        # ... y por el importe y la moneda correctos
+        currency = orders[:1].currency_id
+        payment_currency = payment.get('currency_id')
+        if payment_currency and currency.name and payment_currency != currency.name:
+            orders._mp_link_payment_warning(
+                'el pago %s es en %s y las órdenes en %s: no se facturó.'
+                % (payment_id, payment_currency, currency.name))
+            return {}
+        try:
+            paid = float(payment.get('transaction_amount') or 0.0)
+        except (TypeError, ValueError):
+            paid = 0.0
+        total = sum(orders.mapped('amount_total'))
+        if float_compare(paid, total, precision_rounding=currency.rounding or 0.01) < 0:
+            orders._mp_link_payment_warning(
+                'el pago %s es por %s y las órdenes suman %s: no se facturó. '
+                'Verifique el cobro en Mercado Pago.'
+                % (payment_id, currency.format(paid), currency.format(total)))
+            return {}
+        if float_compare(paid, total, precision_rounding=currency.rounding or 0.01) > 0:
+            _logger.warning('MP link: el pago %s (%s) supera el total de las órdenes (%s)'
+                            % (payment_id, currency.format(paid), currency.format(total)))
+        return payment
 
     def _mp_link_invoices(self):
         """Facturas de venta no canceladas de la orden."""

@@ -147,13 +147,30 @@ class PaymentMercadopagoPoint(models.Model):
         results.sort(key=lambda p: p.get('date_created') or '', reverse=True)
         return results
 
-    def get_payment_status(self,so,payment_id=None):
+    def get_payment(self, payment_id):
+        """Trae el pago de Mercado Pago por id.
+
+        Devuelve el diccionario completo del pago (con ``status``,
+        ``external_reference``, ``transaction_amount``, etc.) o ``{}`` si
+        Mercado Pago no lo devuelve o devuelve un error. Los errores de red se
+        propagan para que el llamador decida (nunca se asume un pago válido).
+        """
+        if not payment_id:
+            return {}
         mp_token = self.payment_provider_id.mercado_pago_qr_access_token
         sdk = mercadopago.SDK(mp_token)
         response = sdk.payment().get(payment_id)
-        payment = response["response"]
-        status = payment["status"]
-        return status
+        _logger.info("MP payment get %s: %s", payment_id, response)
+        if not isinstance(response, dict):
+            return {}
+        http_status = response.get("status") or 0
+        payment = response.get("response")
+        if http_status >= 400 or not isinstance(payment, dict) or payment.get("error"):
+            return {}
+        return payment
+
+    def get_payment_status(self,so,payment_id=None):
+        return (self.get_payment(payment_id) or {}).get("status")
 
     def get_order_status(self,so):
         preference = self.env['payment_mercadopago_point.mercadopago.history'].search([('sale_id', '=', so.id)],order='date desc', limit=1)
