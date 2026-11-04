@@ -134,9 +134,12 @@ class CashBoxResumen(models.Model):
         # Si alguna cuenta configurada no tiene código, no se puede filtrar por
         # prefijo en SQL (esa regla haría match con todo) y se dejan todas las
         # líneas del período.
+        # OJO: expression.OR/AND reciben una lista de DOMINIOS (cada uno una
+        # lista de hojas), no una lista de hojas sueltas.
         if prefixes and all(prefixes):
-            domain = expression.AND([domain, expression.OR([
-                ('account_id.code', '=like', '%s%%' % p) for p in prefixes])])
+            prefix_domains = [
+                [('account_id.code', '=like', '%s%%' % p)] for p in prefixes]
+            domain = expression.AND([domain, expression.OR(prefix_domains)])
         return domain
 
     def _cashbox_gastos(self, configs, date_from, date_to=None, compras_mode='exclude',
