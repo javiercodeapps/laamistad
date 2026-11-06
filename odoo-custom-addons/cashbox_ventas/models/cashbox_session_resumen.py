@@ -1,5 +1,5 @@
 from odoo import models, fields, api
-from datetime import datetime, timedelta
+from datetime import datetime, time
 from odoo.exceptions import UserError
 from odoo.osv import expression
 import logging
@@ -353,7 +353,7 @@ class CashBoxResumen(models.Model):
             ('create_date','>=',self.opening_date),
         ]
         if self.closing_date:
-            order_domain.append(('create_date','<=',self.closing_date + timedelta(days=1)))
+            order_domain.append(('create_date','<=',datetime.combine(self.closing_date, time.max)))
         self._log_domain(domain_log, 'Ventas (read_group)', 'sale.order', order_domain)
         # read_group agrega en SQL: no se cargan los pedidos ni sus líneas
         grupos = self.env['sale.order'].read_group(
@@ -372,7 +372,7 @@ class CashBoxResumen(models.Model):
             ('product_id.name','like','DESCUENTO'),
         ]
         if self.closing_date:
-            disc_domain.append(('order_id.create_date','<=',self.closing_date + timedelta(days=1)))
+            disc_domain.append(('order_id.create_date','<=',datetime.combine(self.closing_date, time.max)))
         self._log_domain(domain_log, 'Descuentos (search_read)', 'sale.order.line', disc_domain)
         disc_lines = self.env['sale.order.line'].search_read(
             disc_domain, ['order_id','product_id','price_total'])
