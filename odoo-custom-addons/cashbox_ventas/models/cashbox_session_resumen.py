@@ -73,6 +73,17 @@ class CashBoxResumen(models.Model):
     # Helpers del resumen
     # ------------------------------------------------------------------
 
+    def _log_domain(self, lines, label, model, domain):
+        """Registra un dominio de búsqueda en el log del resumen y del servidor.
+
+        Se agrega a ``lines`` para que aparezca (agrupado al principio) en el
+        campo ``logs`` y además se envía al logger de Odoo, así se puede
+        depurar el cálculo aunque el texto del campo se trunque.
+        """
+        line = 'DOMINIO | %s | %s | %s' % (label, model, list(domain))
+        lines.append(line)
+        _logger.info('[RESUMEN %s] %s', self.ids, line)
+
     def _cashbox_type_orden(self, name, orden):
         """Código de orden (1 a 4) según el nombre de la forma de pago."""
         type_orden = '1-'
@@ -143,7 +154,8 @@ class CashBoxResumen(models.Model):
         return domain
 
     def _cashbox_gastos(self, configs, date_from, date_to=None, compras_mode='exclude',
-                        price_unit_mode='conditional', special_9900000=False):
+                        price_unit_mode='conditional', special_9900000=False,
+                        domain_log=None, label=''):
         """Suma los apuntes de las cuentas configuradas.
 
         Devuelve ``{'TIPO-DETALLE': importe}`` (incluye los detalles que no
@@ -153,6 +165,9 @@ class CashBoxResumen(models.Model):
 
         ``compras_mode``: 'exclude' ignora las configuraciones de tipo COMPRAS
         (gastos de ventas y compras) y 'only' toma sólo esas (total compras).
+
+        Si se pasa ``domain_log`` (lista), se registra allí el dominio usado en
+        la búsqueda de ``account.move.line`` con la etiqueta ``label``.
         """
         gastosr = {}
         rules = []
@@ -165,9 +180,16 @@ class CashBoxResumen(models.Model):
             gastosr.setdefault('%s-%s' % (tipo, gasto), 0.0)
             rules.append((tipo, gasto, cuenta))
         if not rules:
+            if domain_log is not None:
+                domain_log.append(
+                    'DOMINIO | %s | account.move.line | SIN REGLAS (no se ejecuta la busqueda)'
+                    % (label or 'Apuntes contables'))
             return gastosr, []
         domain = self._cashbox_account_domain(
             date_from, date_to, [cuenta for (_t, _g, cuenta) in rules])
+        if domain_log is not None:
+            self._log_domain(domain_log, label or 'Apuntes contables',
+                             'account.move.line', domain)
         log = []
         offset = 0
         batch = 2000
@@ -229,8 +251,12 @@ class CashBoxResumen(models.Model):
         gcantidad = {}
         ttotales = {}
         tcantidad = {}
-        self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)]).unlink()
         logs = []
+        domain_log = ['=== DOMINIOS DE BUSQUEDA ===']
+        line_domain = [('cashbox_id','=',self.id)]
+        self._log_domain(domain_log, 'Lineas del resumen (limpieza y lectura)',
+                         'account.cashbox.sale.line', line_domain)
+        self.env['account.cashbox.sale.line'].search(line_domain).unlink()
 
         # ------------------------------------------------------------------
         # Pagos: gastos (OP-X), transferencias y cobros
@@ -238,12 +264,14 @@ class CashBoxResumen(models.Model):
         pay_domain = [('company_id','=',self.company_id.id),('state','=','posted'),('date','>=',self.opening_date)]
         if self.closing_date:
             pay_domain.append(('date','<=',self.closing_date))
+        self._log_domain(domain_log, 'Pagos (search_read)', 'account.payment', pay_domain)
         # Los pagos se leen por lotes (search_read trae sólo los campos usados):
         # iterar el recordset completo con el ORM carga en memoria todos los
         # pagos y sus relaciones.
         pay_fields = ['name','journal_id','partner_id','amount_signed']
         pay_offset = 0
         pay_batch = 2000
+        old_invoice_domain_logged = False
         while True:
             pays = self.env['account.payment'].search_read(
                 pay_domain, pay_fields, order='id', limit=pay_batch, offset=pay_offset)
@@ -263,10 +291,18 @@ class CashBoxResumen(models.Model):
                     all_invoice_ids.update(pay_invoices[pay.id])
                 if all_invoice_ids:
                     # Facturas con líneas de pedidos anteriores a la apertura
-                    old_invoices = set(self.env['account.move.line'].search([
+                    old_invoice_domain = [
                         ('move_id','in',list(all_invoice_ids)),
                         ('sale_line_ids.create_date','<',self.opening_date),
-                    ]).mapped('move_id').ids)
+                    ]
+                    if not old_invoice_domain_logged:
+                        self._log_domain(
+                            domain_log,
+                            'Facturas de pedidos anteriores (primer lote con RE)',
+                            'account.move.line', old_invoice_domain)
+                        old_invoice_domain_logged = True
+                    old_invoices = set(self.env['account.move.line'].search(
+                        old_invoice_domain).mapped('move_id').ids)
             for p in pays:
                 journal = p['journal_id'][1] if p['journal_id'] else False
                 partner = p['partner_id'][1] if p['partner_id'] else False
@@ -318,6 +354,7 @@ class CashBoxResumen(models.Model):
         ]
         if self.closing_date:
             order_domain.append(('create_date','<=',self.closing_date + timedelta(days=1)))
+        self._log_domain(domain_log, 'Ventas (read_group)', 'sale.order', order_domain)
         # read_group agrega en SQL: no se cargan los pedidos ni sus líneas
         grupos = self.env['sale.order'].read_group(
             order_domain, ['amount_total:sum','__count'], ['type_id'], lazy=False)
@@ -336,6 +373,7 @@ class CashBoxResumen(models.Model):
         ]
         if self.closing_date:
             disc_domain.append(('order_id.create_date','<=',self.closing_date + timedelta(days=1)))
+        self._log_domain(domain_log, 'Descuentos (search_read)', 'sale.order.line', disc_domain)
         disc_lines = self.env['sale.order.line'].search_read(
             disc_domain, ['order_id','product_id','price_total'])
         if disc_lines:
@@ -360,10 +398,14 @@ class CashBoxResumen(models.Model):
         # Gastos desde los asientos contables (ventas)
         # ------------------------------------------------------------------
         configs = self.env['account.cashbox.resumen.config']
+        cfg_ventas_domain = [('tipo_resumen','!=','resumen'),('tipo_fecha','=','ventas')]
+        self._log_domain(domain_log, 'Config cuentas (gastos ventas)',
+                         'account.cashbox.resumen.config', cfg_ventas_domain)
         gastosr, glog = self._cashbox_gastos(
-            configs.search([('tipo_resumen','!=','resumen'),('tipo_fecha','=','ventas')]),
+            configs.search(cfg_ventas_domain),
             self.opening_date, self.closing_date or None,
-            compras_mode='exclude', price_unit_mode='conditional', special_9900000=True)
+            compras_mode='exclude', price_unit_mode='conditional', special_9900000=True,
+            domain_log=domain_log, label='Apuntes contables (gastos ventas)')
         logs.extend(glog)
         gastosr['GASTOS GENERALES-01_DESCUENTOS'] = 0
         for k in descuentos:
@@ -373,30 +415,38 @@ class CashBoxResumen(models.Model):
         # ------------------------------------------------------------------
         # Gastos desde los asientos contables (compras)
         # ------------------------------------------------------------------
+        cfg_compras_domain = [('tipo_resumen','!=','resumen'),('tipo_fecha','=','compras')]
+        self._log_domain(domain_log, 'Config cuentas (gastos compras)',
+                         'account.cashbox.resumen.config', cfg_compras_domain)
         gastosr, glog = self._cashbox_gastos(
-            configs.search([('tipo_resumen','!=','resumen'),('tipo_fecha','=','compras')]),
+            configs.search(cfg_compras_domain),
             self.opening_compra, self.closing_compra if self.closing_date else None,
-            compras_mode='exclude', price_unit_mode='conditional')
+            compras_mode='exclude', price_unit_mode='conditional',
+            domain_log=domain_log, label='Apuntes contables (gastos compras)')
         logs.extend(glog)
         self._cashbox_create_gastos(gastosr)
 
         # ------------------------------------------------------------------
         # Total compras desde los asientos contables
         # ------------------------------------------------------------------
+        cfg_all_domain = [('tipo_resumen','!=','resumen')]
+        self._log_domain(domain_log, 'Config cuentas (todas / total compras)',
+                         'account.cashbox.resumen.config', cfg_all_domain)
         gastosr, glog = self._cashbox_gastos(
-            configs.search([('tipo_resumen','!=','resumen')]),
+            configs.search(cfg_all_domain),
             self.opening_compra, self.closing_compra if self.closing_compra else None,
-            compras_mode='only', price_unit_mode='signed')
+            compras_mode='only', price_unit_mode='signed',
+            domain_log=domain_log, label='Apuntes contables (total compras)')
         logs.extend(glog)
         self._cashbox_create_gastos(gastosr)
 
         # Preparo el resumen desde las lineas anteriores
-        resumen_lines = self.env['account.cashbox.sale.line'].search([('cashbox_id','=',self.id)])
+        resumen_lines = self.env['account.cashbox.sale.line'].search(line_domain)
         resumen = {}
         resumen['CTACTE'] = 0
         resumen['VENTAS'] = 0
         resumen['COBROS'] = 0
-        for i in configs.search([('tipo_resumen','!=','resumen')]):
+        for i in configs.search(cfg_all_domain):
             resumen[i.type_pay_id] = 0
             resumen[i.type_id] = 0
         cantidad = {}
@@ -410,7 +460,10 @@ class CashBoxResumen(models.Model):
                 resumen[type_pay_id]  = 0
             resumen[type_pay_id] += r.amount
         _logger.info('%s' % resumen)
-        for i in configs.search([('tipo_resumen','=','resumen')],order='type_pay_id'):
+        cfg_resumen_domain = [('tipo_resumen','=','resumen')]
+        self._log_domain(domain_log, 'Config resumen (formulas)',
+                         'account.cashbox.resumen.config', cfg_resumen_domain)
+        for i in configs.search(cfg_resumen_domain, order='type_pay_id'):
             try:
                 resumen[i.type_pay_id] = eval(i.valor)
             except:
@@ -418,7 +471,7 @@ class CashBoxResumen(models.Model):
             cantidad[i.type_pay_id] = i.color if i.color else 0
 
         totales_vals = []
-        for i in configs.search([('tipo_resumen','=','resumen')]):
+        for i in configs.search(cfg_resumen_domain):
             totales_vals.append({
                 'type_id':'%s' % i.type_pay_id,
                 'amount':resumen[i.type_pay_id],
@@ -428,7 +481,10 @@ class CashBoxResumen(models.Model):
             })
         self._cashbox_create_lines(totales_vals)
 
-        log_text = '\n'.join(logs[:self.MAX_LOG_LINES])
+        # Los dominios van al principio para que no se pierdan si el detalle
+        # del log se trunca por MAX_LOG_LINES / MAX_LOGS.
+        all_logs = domain_log + ['=== DETALLE DEL CALCULO ==='] + logs
+        log_text = '\n'.join(all_logs[:self.MAX_LOG_LINES])
         if len(log_text) > self.MAX_LOGS:
             log_text = log_text[:self.MAX_LOGS] + '\n... (log truncado)'
         self.logs = log_text
