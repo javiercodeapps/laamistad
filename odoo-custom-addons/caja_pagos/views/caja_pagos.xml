@@ -12,6 +12,7 @@
                 <field name="origen" />
                 <field name="destino" />
                 <field name="company_id" />
+                <field name="active" invisible="1" />
             </tree>
         </field>
     </record>
@@ -31,6 +32,7 @@
                     <field name="origen" />
                     <field name="destino" />
                     <field name="company_id" />
+                    <field name="active" invisible="1" />
                 </group>
                 </group>
             </form>
@@ -49,6 +51,7 @@
                 <field name="cashbox_session" />
                 <field name="user" />
                 <field name="company_id" />
+                <field name="active" invisible="1" />
 		<field name="state" decoration-success="state == 'done'" decoration-info="state == 'draft'" widget="badge"/>
             </tree>
         </field>
@@ -77,6 +80,7 @@
 		    <field name="payment_group" attrs="{'readonly': True}" />
 		    <field name="payment" attrs="{'readonly': True}" />
                     <field name="company_id" />
+                    <field name="active" invisible="1" />
                 </group>
                 <group>
                 </group>
@@ -89,15 +93,58 @@
             </form>
         </field>
     </record>
+    <record id="caja_pagos_tipo_search" model="ir.ui.view">
+        <field name="name">caja.pagos.tipo.search.view</field>
+        <field name="model">caja.pagos.tipo</field>
+        <field name="arch" type="xml">
+            <search string="Tipos de Pago">
+                <field name="name" />
+                <field name="partner_id" />
+                <field name="origen" />
+                <field name="destino" />
+                <separator />
+                <filter string="Archivados" name="inactive" domain="[('active', '=', False)]" />
+                <group expand="0" string="Agrupar por">
+                    <filter string="Tipo de pago" name="group_by_tipo_pago" context="{'group_by': 'tipo_pago'}" />
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="caja_pagos_search" model="ir.ui.view">
+        <field name="name">caja.pagos.search.view</field>
+        <field name="model">caja.pagos</field>
+        <field name="arch" type="xml">
+            <search string="Pagos y Transferencias">
+                <field name="name" string="Descripción" />
+                <field name="tipo" />
+                <field name="origen" />
+                <field name="destino" />
+                <field name="user" />
+                <separator />
+                <filter string="Borradores" name="draft" domain="[('state', '=', 'draft')]" />
+                <filter string="Procesadas" name="done" domain="[('state', '=', 'done')]" />
+                <filter string="Canceladas" name="cancel" domain="[('state', '=', 'cancel')]" />
+                <separator />
+                <filter string="Archivados" name="inactive" domain="[('active', '=', False)]" />
+                <group expand="0" string="Agrupar por">
+                    <filter string="Tipo" name="group_by_tipo" context="{'group_by': 'tipo'}" />
+                    <filter string="Estado" name="group_by_state" context="{'group_by': 'state'}" />
+                    <filter string="Usuario" name="group_by_user" context="{'group_by': 'user'}" />
+                </group>
+            </search>
+        </field>
+    </record>
     <record id="caja_pagos_tipo_menu" model="ir.actions.act_window">
         <field name="name">Tipo Pagos</field>
         <field name="res_model">caja.pagos.tipo</field>
         <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="caja_pagos_tipo_search" />
     </record>
     <record id="caja_pagos_menu" model="ir.actions.act_window">
         <field name="name">Pagos/Transferencias</field>
         <field name="res_model">caja.pagos</field>
         <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="caja_pagos_search" />
     </record>
 
     <menuitem id="menu_caja_pagos" name="Caja/Pagos"

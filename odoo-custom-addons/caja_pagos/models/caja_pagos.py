@@ -14,6 +14,7 @@ class CajaPagos(models.Model):
     _description = "Pagos desde Caja"
     _order = 'create_date desc'
     _inherit = ['mail.thread']
+    active = fields.Boolean(string='Activo', default=True)
     tipo = fields.Many2one('caja.pagos.tipo',string='Tipo')
     name = fields.Char(string='Descripcion')
     origen = fields.Many2one('account.journal')
@@ -161,7 +162,8 @@ class AccoutPayment(models.Model):
         res = super().action_post()
         context = self.env.context
         if context.get('caja_pago_id',None):
-            pago = self.env['caja.pagos'].search([('id','=',context.get('caja_pago_id',None))])
+            # Busco tambien los registros archivados: el pago se inicio desde uno de ellos
+            pago = self.env['caja.pagos'].with_context(active_test=False).search([('id','=',context.get('caja_pago_id',None))])
             for p in pago:
                 p.write({'state':'done','payment':self.id})
         return res
@@ -177,6 +179,7 @@ class AccoutPayment(models.Model):
 class CajaPagosTipo(models.Model):
     _name = "caja.pagos.tipo"
     _description = "Tipo de pagos desde Caja"
+    active = fields.Boolean(string='Activo', default=True)
     name = fields.Char(string="Name")
     partner_id = fields.Many2one("res.partner", string="Contacto")
     tipo_pago = fields.Selection([('Pago','Pago'),('Transferencia','Transferencia')],string="Tipo")

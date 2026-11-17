@@ -31,7 +31,7 @@ class SaleOrderQR(models.Model):
     seller = fields.Char(string="Seller", size=2)
     scale = fields.Char(string="Scale Number", size=3)
     total_items = fields.Integer(string="Total Items", default=0)
-    payment_provider = fields.Many2one('payment.transaction')
+    payment_provider = fields.Many2one('payment.transaction', copy=False)
     caja_id = fields.Many2one('account.cashbox.session', string="Sesión de Caja")
     is_admin = fields.Boolean(default=False, store=True,tracking=True)
     mp_link = fields.Char(string="MP Link", copy=False)
@@ -225,7 +225,8 @@ class SaleOrderQR(models.Model):
                 self._mp_link_prepare_order()
                 if not self._mp_link_is_ctacte_factura():
                     self.state = 'sent'
-                    self.caja_id = caja.id
+                    if not self.caja_id:
+                        self.caja_id = caja.id
                     self.date_order = fields.datetime.now()
                 return self._mp_link_generate()
             for moves in self.invoice_ids:
@@ -248,7 +249,8 @@ class SaleOrderQR(models.Model):
             self._mp_link_prepare_order()
             if not self._mp_link_is_ctacte_factura():
                 self.state = 'sent'
-                self.caja_id = caja.id
+                if not self.caja_id:
+                    self.caja_id = caja.id
                 self.date_order = fields.datetime.now()
             self.env.cr.commit()
             return self._mp_link_generate()
@@ -259,7 +261,8 @@ class SaleOrderQR(models.Model):
             tag_id = self.env["crm.tag"].search([('name','=','CTACTE')])
             self.tag_ids = tag_id.ids 
             self.state = 'sent'
-            self.caja_id = caja.id
+            if not self.caja_id:
+                self.caja_id = caja.id
             self.date_order = fields.datetime.now()
            #self.sale_discount = 0
            #self.sale_with_discount = 0
