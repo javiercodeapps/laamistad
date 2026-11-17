@@ -9,6 +9,8 @@ _logger = logging.getLogger(__name__)
 # A un grupo de adminsitracion le permita poner montos negativos
 # Ver si lo hacemos dando vuelta el asiento, o recibiendo en vez de enviar
 # habilitar los negativos al grupo de caja avanzado
+# agegar la posibilidad de archivar los pagos, y que se pueda ver el historial de pagos archivados
+
 class CajaPagos(models.Model):
     _name = "caja.pagos"
     _description = "Pagos desde Caja"

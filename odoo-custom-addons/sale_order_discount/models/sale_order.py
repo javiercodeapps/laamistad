@@ -3,6 +3,10 @@ from datetime import datetime, timedelta,date
 from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
+
+
+# Activar el desucneto cuendo se modifican las lineas de producto 
+
 class SaleOrder(models.Model):
     _inherit = "sale.order"
     sale_discount = fields.Float(
