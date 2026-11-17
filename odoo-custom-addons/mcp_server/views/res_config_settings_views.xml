@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="res_config_settings_view_form_mcp" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.mcp</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority">20</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside"><div
+                    class="app_settings_block"
+                    data-string="MCP Server"
+                    string="MCP Server"
+                    data-key="mcp_server"
+                ><h2>Access</h2><div
+                        class="row mt16 o_settings_container"
+                        name="mcp_access_setting_container"
+                    ><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_enabled_setting"
+                        ><div class="o_setting_left_pane"><field
+                                    name="mcp_enabled"
+                                /></div><div class="o_setting_right_pane"><label
+                                    for="mcp_enabled"
+                                /><a
+                                    title="Turns the MCP server on or off. When it is off, the /mcp endpoint, the REST routes and the XML-RPC proxy refuse all requests. Only members of the MCP User group can connect."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Enable or disable MCP server access globally</div><div
+                                    class="content-group mt16"
+                                    attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                                ><div><button
+                                            name="%(mcp_server.action_mcp_enabled_models)d"
+                                            icon="fa-arrow-right"
+                                            type="action"
+                                            string="Manage MCP Available Models"
+                                            class="btn-link"
+                                        /></div><div class="mt8"><button
+                                            name="%(mcp_server.action_mcp_custom_tool)d"
+                                            icon="fa-arrow-right"
+                                            type="action"
+                                            string="Manage Custom Tools"
+                                            class="btn-link"
+                                        /></div></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_enable_oauth_setting"
+                            attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                        ><div class="o_setting_left_pane"><field
+                                    name="mcp_enable_oauth"
+                                /></div><div class="o_setting_right_pane"><label
+                                    for="mcp_enable_oauth"
+                                /><a
+                                    title="Lets browser MCP clients, such as Claude.ai and Gemini, connect after the user logs in to Odoo. API keys work in both cases. When this is off, the /mcp/oauth/* routes and OAuth discovery answer HTTP 404. On by default."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Let browser clients sign in with Odoo via OAuth 2.1 (on by default)</div><div
+                                    class="content-group mt16"
+                                    attrs="{'invisible': [('mcp_enable_oauth', '=', False)]}"
+                                ><div><button
+                                            name="%(mcp_server.action_mcp_oauth_clients)d"
+                                            icon="fa-arrow-right"
+                                            type="action"
+                                            string="Manage OAuth Clients"
+                                            class="btn-link"
+                                        /></div><div class="mt8"><button
+                                            name="%(mcp_server.action_mcp_oauth_tokens)d"
+                                            icon="fa-arrow-right"
+                                            type="action"
+                                            string="Manage OAuth Tokens"
+                                            class="btn-link"
+                                        /></div></div></div></div></div><h2
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    >Security</h2><div
+                        class="row mt16 o_settings_container"
+                        name="mcp_security_setting_container"
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    ><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_allowed_origins_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_allowed_origins" /><a
+                                    title="Comma-separated browser origins that can call /mcp, for example https://app.example.com. When the list is empty, all origins are accepted. When it is set, a request from another origin gets HTTP 403. Native clients, such as Claude Desktop and Cursor, send no Origin header and are always accepted."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Restrict browser calls to these Origins (empty = no restriction)</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_allowed_origins"
+                                        placeholder="https://app.example.com, https://tool.example.org"
+                                        class="w-100"
+                                    /></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_enable_rate_limiting_setting"
+                        ><div class="o_setting_left_pane"><field
+                                    name="mcp_enable_rate_limiting"
+                                /></div><div class="o_setting_right_pane"><label
+                                    for="mcp_enable_rate_limiting"
+                                /><a
+                                    title="Limits the requests per minute of each user on /mcp, the REST routes and the XML-RPC proxy. Each Odoo worker counts on its own, so with several workers a user can make up to (workers x limit) requests. For a strict limit, use a reverse proxy. Off by default."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Enforce request limits to prevent API abuse</div><div
+                                    class="content-group mt16"
+                                    attrs="{'invisible': [('mcp_enable_rate_limiting', '=', False)]}"
+                                ><label
+                                        for="mcp_request_limit"
+                                        class="o_light_label"
+                                    /><a
+                                        title="Requests per user per minute. Past this number, the server answers HTTP 429 until the minute ends. Pings do not count. Values from 1 to 9 count as 10. Set 0 for no limit. Default: 300."
+                                        class="o_doc_link me-2"
+                                    /><div
+                                        class="text-muted"
+                                    >Maximum requests per minute per user (0 = unlimited)</div><field
+                                        name="mcp_request_limit"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >requests/minute</span></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_proxy_context_keys_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_proxy_context_keys" /><a
+                                    title="Comma-separated context keys that a write call through the XML-RPC proxy (/mcp/xmlrpc/object) can send, on top of the built-in keys. A default_ key counts too, for example default_partner_id. A write call with any other key gets fault 403, and the message names the key. Some keys make Odoo skip a business check. For example, check_move_validity lets a journal entry stay unbalanced, and default_state can create a posted journal entry. Add a key only when an integration needs it. Reads and the /mcp endpoint do not change."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Context keys that write calls through the XML-RPC proxy can send, on top of the built-in keys (empty = built-in keys only)</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_proxy_context_keys"
+                                        placeholder="default_partner_id, my_module_flag"
+                                        class="w-100"
+                                    /></div><div
+                                    class="text-muted small mt8"
+                                >Always allowed: lang, tz, uid, active_test, allowed_company_ids, bin_size, tracking_disable, mail_create_nolog, mail_create_nosubscribe, mail_notrack</div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_link_ttl_hours_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_link_ttl_hours" /><a
+                                    title="Hours that a read_attachment download link stays valid. Anyone with the link can download the file without an Odoo login, and a single link cannot be revoked. Keep it short. The AI client asks for a new link when one expires. Maximum: 1008 hours (42 days). Set 0 to use the default. Default: 1."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Validity of read_attachment download links (no login needed)</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_link_ttl_hours"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >hours</span></div></div></div></div><h2
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    >Audit Log</h2><div
+                        class="row mt16 o_settings_container"
+                        name="mcp_audit_setting_container"
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    ><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_enable_logging_setting"
+                        ><div class="o_setting_left_pane"><field
+                                    name="mcp_enable_logging"
+                                /></div><div class="o_setting_right_pane"><label
+                                    for="mcp_enable_logging"
+                                /><a
+                                    title="Writes one audit row per MCP call to the MCP log: user, IP address, tool, model, record IDs, duration and errors. The rows store argument names and result sizes, never field values. When this is off, nothing is logged, failed logins included."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Keep an audit log of MCP calls (metadata only)</div><div
+                                    class="content-group mt16"
+                                    attrs="{'invisible': [('mcp_enable_logging', '=', False)]}"
+                                ><label
+                                        for="mcp_log_retention_days"
+                                        class="o_light_label"
+                                    /><a
+                                        title="Number of days to keep MCP log rows. A daily scheduled action deletes older rows. Set 0 to keep all rows. Default: 30."
+                                        class="o_doc_link me-2"
+                                    /><div
+                                        class="text-muted"
+                                    >Older log rows are deleted every day</div><field
+                                        name="mcp_log_retention_days"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span class="ms-1">days</span><div
+                                        class="mt16"
+                                    ><button
+                                            name="%(mcp_server.action_mcp_logs)d"
+                                            icon="fa-arrow-right"
+                                            type="action"
+                                            string="View MCP Logs"
+                                            class="btn-link"
+                                        /></div></div></div></div></div><h2
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    >Tool Limits</h2><div
+                        class="row mt16 o_settings_container"
+                        name="mcp_tool_limits_setting_container"
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    ><div
+                            class="col-12 text-muted ps-4 mb-3"
+                        >Default and maximum sizes applied to MCP read and batch write tools</div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_default_limit_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_default_limit" /><a
+                                    title="Number of records that search_records, aggregate_records and list_record_attachments return when the client sends no limit. Default: 25."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Records returned when the client does not request a limit</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_default_limit"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >records</span></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_max_limit_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_max_limit" /><a
+                                    title="Largest number of records that search_records, aggregate_records and list_record_attachments return in one call. A larger limit from the client is reduced to this value. Default: 100."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Hard cap on records returned per request</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_max_limit"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >records</span></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_max_batch_size_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_max_batch_size" /><a
+                                    title="Largest number of entries in one create_records or update_records call. The server refuses a larger batch and asks the client to split it. Default: 100."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Maximum entries per batch write call (create_records / update_records)</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_max_batch_size"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >entries</span></div></div></div></div><h2
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    >Output Formatting</h2><div
+                        class="row mt16 o_settings_container"
+                        name="mcp_output_setting_container"
+                        attrs="{'invisible': [('mcp_enabled', '=', False)]}"
+                    ><div
+                            class="col-12 text-muted ps-4 mb-3"
+                        >Which fields and related records appear in tool output, and where long text is cut</div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_max_smart_fields_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_max_smart_fields" /><a
+                                    title="When the client lists no fields, the server picks the most useful fields, up to this number. This keeps the answers short for the AI model. Default: 15."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Maximum fields auto-selected when no fields are listed</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_max_smart_fields"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >fields</span></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_max_related_items_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_max_related_items" /><a
+                                    title="get_record lists up to this many linked records by name. A larger one-to-many or many-to-many field shows a count and a search hint instead. Set 0 to always show the count. Default: 3."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Related records shown inline before collapsing to a count</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_max_related_items"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >items</span></div></div></div><div
+                            class="col-12 col-lg-6 o_setting_box"
+                            id="mcp_max_field_length_setting"
+                        ><div class="o_setting_left_pane" /><div
+                                class="o_setting_right_pane"
+                            ><label for="mcp_max_field_length" /><a
+                                    title="search_records, and get_record without named fields (smart defaults or [&quot;__all__&quot;]), show up to this many characters of a text field. A longer value ends with a note that tells the AI to call get_record with the field name, which shows up to 100000 characters. Maximum: 100000. Set 0 to use the default. Default: 2000."
+                                    class="o_doc_link me-2"
+                                /><div
+                                    class="text-muted"
+                                >Characters of a text field shown before it is cut</div><div
+                                    class="content-group mt16"
+                                ><field
+                                        name="mcp_max_field_length"
+                                        class="oe_inline"
+                                        style="width: 100px;"
+                                    /><span
+                                        class="ms-1"
+                                    >characters</span></div></div></div></div></div></xpath></field></record></odoo>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="mcp_server.ListView.Buttons" t-inherit="web.ListView.Buttons" owl="1">
+        <xpath expr="//button[hasclass('o_list_button_add')]" position="after">
+            <button type="button" class="btn btn-primary o_list_button_mcp_wizard ms-2" t-on-click="onClickMcpWizard">
+                Select Multiple Models
+            </button>
+        </xpath>
+    </t>
+</templates>
