@@ -32,3 +32,4 @@ requests
 responses==0.25.7
 xlrd
 mercadopago
+authlib

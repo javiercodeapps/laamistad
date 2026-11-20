@@ -55,9 +55,12 @@
                         <tbody>
                             <t t-set="total_descuento" t-value="0"/>
                             <t t-set="total_items" t-value="0"/>
+                            <t t-set="nombre_descuento" t-value="Descuento"/>
+
                             <t t-foreach="o.order_line" t-as="line">
                                 <t t-if="line.product_id.default_code and ('DESCU' in line.product_id.default_code or 'REDONDEO' in line.product_id.default_code)">
                                      <t t-set="total_items" t-value="total_items + 0"/>
+                                     <t t-set="nombre_descuento" t-value="line.name"/>
                                 </t>
                                 <t t-else="">
                                      <t t-set="total_items" t-value="total_items + 1"/>

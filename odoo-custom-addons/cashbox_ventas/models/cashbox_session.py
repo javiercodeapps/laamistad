@@ -240,7 +240,7 @@ class CashBoxSale(models.Model):
                     type_name = v.type_id.name
                     if 'Mercado Pago' in type_name or 'MP' in type_name:
                         type_name = 'MP'
-                    if self.tag_ids and any(tag.name == 'CTACTE' for tag in self.tag_ids):
+                    if v.tag_ids and any(tag.name == 'CTACTE' for tag in v.tag_ids):
                         type_name='CTACTE'
                     if type_name not in totales:
                         totales[type_name]=0

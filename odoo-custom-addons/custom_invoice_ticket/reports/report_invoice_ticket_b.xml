@@ -93,10 +93,12 @@
                                 <span t-esc="total_items " />
                             </th>
                         </tr>
-                        <tr t-if="total_descuento &lt; 0">
-                            <th class="text-end">Descuentos</th>
+                        <tr t-if="total_descuento &lt; 0" style="border-bottom: 2px solid #000000; padding: 2px;">
                             <th class="text-end">
-                                <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                <span t-esc="nombre_descuento"/>
+                            </th>
+                            <th class="text-end">
+                                <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                             </th>
                         </tr>
                         <tr>
