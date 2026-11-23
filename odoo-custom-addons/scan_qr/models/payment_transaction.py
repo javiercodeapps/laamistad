@@ -63,18 +63,25 @@ class PaymentTransaction(models.Model):
                 self.invoice_ids = [(6, 0, invoices.ids)]
             return True
         if self.state in ('cancel', 'error'):
+            orders._mp_qr_restore_previous_type()
             orders._mp_qr_payment_warning(_(
                 'Mercado Pago informó un pago para el QR %s, pero la transacción ya '
                 'estaba cancelada o vencida. No se facturó; verifique el cobro en '
                 'Mercado Pago antes de cobrar por otro medio.') % self.reference)
             return False
         if not self._mp_qr_verify_payment(order_data, expected_amount, orders):
+            # Pago inválido / no verificable: el tipo NUNCA se cambió, pero
+            # restauramos explícitamente por si un flujo anterior lo fijó.
+            orders._mp_qr_restore_previous_type()
             return False
         try:
             for order in orders:
                 order._mp_qr_confirm_and_invoice(self)
         except Exception:
             _logger.exception('MP QR %s: error al confirmar/facturar el pedido', self.reference)
+            # Si action_confirm() alcanzó a fijar el tipo antes de fallar, lo
+            # devolvemos al anterior: el pago NO quedó registrado.
+            orders._mp_qr_restore_previous_type()
             orders._mp_qr_payment_warning(_(
                 'el pago fue verificado pero no se pudo confirmar el pedido ni '
                 'emitir la factura. Revise el log; la transacción NO se marcó '

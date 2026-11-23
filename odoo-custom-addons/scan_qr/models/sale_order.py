@@ -35,6 +35,11 @@ class SaleOrderQR(models.Model):
     caja_id = fields.Many2one('account.cashbox.session', string="Sesión de Caja")
     is_admin = fields.Boolean(default=False, store=True,tracking=True)
     mp_link = fields.Char(string="MP Link", copy=False)
+    # Tipo de pedido previo a generar un QR. El tipo 'MP QR' sólo se fija cuando
+    # el pago se acredita; si el QR se cancela o el pago no se puede verificar,
+    # se restaura éste para que el pedido quede exactamente como estaba.
+    mp_qr_previous_type_id = fields.Many2one(
+        'sale.order.type', string='Tipo previo al QR MP', copy=False)
 
     def write(self, vals):
         res = super().write(vals)
@@ -226,6 +231,10 @@ class SaleOrderQR(models.Model):
         if payment_type != 'MP QR':
             qr_discount_applied = self._mp_qr_discount_applied()
             self._mp_qr_cancel_pending('Se eligió el medio de pago %s' % payment_type)
+            # El QR pudo haber fijado el tipo 'MP QR' (pago acreditado y luego
+            # cancelado, o flujo anterior). Volvemos al tipo previo ANTES de
+            # recalcular el descuento, porque éste depende del tipo de pedido.
+            self._mp_qr_restore_previous_type()
             if qr_discount_applied:
                 # Al generar el QR se ejecutó apply_discount() para que el
                 # importe del código fuera el definitivo. apply_discount() NO
@@ -242,7 +251,9 @@ class SaleOrderQR(models.Model):
             # _mp_link_prepare_order debe reconocerlo para no cambiarlo (ni
             # devolverlo a 'Presupuesto enviado'); si no lo está, es ese mismo
             # método el que lo pasa a CTACTE.
-            if sale_order_type and payment_type != 'MP Link':
+            # MP QR no toca el tipo acá: se fija recién cuando el pago se
+            # acredita (y se restaura si se cancela o es inválido).
+            if sale_order_type and payment_type not in ('MP Link', 'MP QR'):
                 self.type_id = sale_order_type.id
             if payment_type == 'MP QR':
                 # Pedido ya confirmado/facturado por otro medio: se genera el QR,
@@ -297,7 +308,10 @@ class SaleOrderQR(models.Model):
             self.env.cr.commit()
             return self._mp_link_generate()
         _logger.info('%s %s %s %s' % (payment_type,efectivo,context.get('payment_type'),sale_order_type ) )
-        self.type_id=sale_order_type.id
+        # MP QR NO cambia el tipo todavía: el pedido sigue en presupuesto con
+        # el tipo que tenía. Sólo al acreditarse el pago se fija 'MP QR'.
+        if payment_type != 'MP QR':
+            self.type_id=sale_order_type.id
         self.env.cr.commit()
         if payment_type == 'MP QR':
             # MP QR NO confirma ni factura acá: el pedido se mantiene en
@@ -1314,6 +1328,29 @@ class SaleOrderQR(models.Model):
                     'medio de pago.') % tx.reference)
         return txs
 
+    def _mp_qr_sale_type(self):
+        """Tipo de pedido 'MP QR' de la compañía (el que aporta el diario de
+        facturación y la automatización al confirmar la venta)."""
+        self.ensure_one()
+        return self.env['sale.order.type'].search([
+            ('name', 'ilike', 'MP QR'),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+
+    def _mp_qr_restore_previous_type(self):
+        """Vuelve al tipo de pedido que tenía el presupuesto antes del QR.
+
+        Se ejecuta al cancelar el QR, al elegir otro medio de pago y cuando el
+        pago no puede verificarse. Acepta un recordset (el hook de la
+        transacción puede traer varios pedidos).
+        """
+        for order in self:
+            if order.mp_qr_previous_type_id and \
+                    order.type_id != order.mp_qr_previous_type_id:
+                order.type_id = order.mp_qr_previous_type_id.id
+            order.mp_qr_previous_type_id = False
+        return True
+
     def _mp_qr_discount_lines(self):
         """Líneas de descuento/redondeo generadas automáticamente.
 
@@ -1403,10 +1440,9 @@ class SaleOrderQR(models.Model):
             # Venció o se canceló: seguimos abajo y generamos uno nuevo.
         elif pending:
             self._mp_qr_cancel_pending('El total del pedido cambió; se regenera el QR')
-        if self.type_id.name == 'Efectivo':
-            self.apply_redondeo()
-            if abs(self.redondeo) > 1000:
-                raise UserError('No puede aplicar un redondeo mayor a 1.000 (%s) ' % self.redondeo)
+        # Recordamos el tipo actual para poder restaurarlo si el QR se cancela
+        # o el pago no se acredita. NO lo cambiamos a 'MP QR' todavía.
+        self.mp_qr_previous_type_id = self.type_id.id
         # El descuento se RECALCULA (no se re-aplica) ANTES de crear la
         # transacción: el importe del QR tiene que coincidir con el total
         # definitivo de las líneas actuales, sin arrastrar descuentos viejos.
@@ -1458,6 +1494,21 @@ class SaleOrderQR(models.Model):
             raise UserError(_("El pedido %s está cancelado; no se puede facturar.") % self.name)
         invoices = self._mp_qr_invoices()
         if self.state in ('draft', 'sent'):
+            # RECIÉN ACÁ, con el pago ya verificado, se fija el tipo 'MP QR':
+            # es el que aporta el diario de facturación y la automatización al
+            # confirmar. Si el QR se cancela o el pago es inválido, este método
+            # no se ejecuta y el pedido conserva su tipo anterior.
+            mp_qr_type = self._mp_qr_sale_type()
+            if mp_qr_type:
+                # sale_order_type.write() puede regenerar el número del pedido
+                # si el tipo usa otra secuencia. La referencia del QR ya se creó
+                # con el nombre original, así que lo preservamos.
+                name_original = self.name
+                self.type_id = mp_qr_type.id
+                if self.name != name_original:
+                    self.name = name_original
+            # NO se limpia mp_qr_previous_type_id todavía: si action_confirm()
+            # falla, el hook debe poder restaurar el tipo anterior.
             # 'sale_order_type_automation' crea y publica la factura al confirmar.
             # La transacción sigue en 'pending' y NO está vinculada por
             # sale_order_ids, así que la automatización no omite la facturación.
@@ -1473,6 +1524,9 @@ class SaleOrderQR(models.Model):
         # la usa para crear el cobro del QR y conciliarlo.
         tx.sudo().invoice_ids = [(6, 0, invoices.ids)]
         self._mp_qr_register_cash(invoices)
+        # Pago correcto y facturación completa: el tipo 'MP QR' queda firme,
+        # ya no hay nada que restaurar.
+        self.mp_qr_previous_type_id = False
         self.message_post(body=_(
             'Pago del QR de Mercado Pago acreditado (%s). Se confirmó el pedido, '
             'se emitieron las facturas %s y se registró el cobro.')
