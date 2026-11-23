@@ -77,6 +77,13 @@ class SaleOrderQR(models.Model):
             raise UserError('La clave ingresada es incorrecta')
 
     def modifico(self):
+        # Verifico si la caja esta abierta
+        if self.caja_id:
+            if self.caja_id.state != 'opened':
+                raise UserError(
+                    "No se puede modificar el pedido %s porque la sesión de caja "
+                    "asociada (%s) no está en estado 'Abierta'. "
+                  % (self.name, self.caja_id.name))
         if self.is_admin == True:
             self.is_admin = False
             return True

@@ -66,6 +66,7 @@
         <xpath expr="//button[@name='action_draft']" position="attributes">
           <attribute name="invisible">1</attribute>
         </xpath>
+        <button name="action_confirm" position="replace"/>
         <xpath expr="//group[@name='order_details']"
           position="replace">
           <group class="oe_right" colspan="6" name="sale_total">
