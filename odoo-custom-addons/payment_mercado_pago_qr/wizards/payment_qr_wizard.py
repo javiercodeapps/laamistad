@@ -34,9 +34,36 @@ class PaymentQrWizard(models.TransientModel):
 
     def action_check_status(self):
         self.tx_id.sudo().mp_payment_order_get()
-        if self.state != "done":
-            return self.tx_id.sudo().action_mp_open_qr()
+        if self.state == "done":
+            return {"type": "ir.actions.act_window_close"}
+        if self.state in ("cancel", "error"):
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Mercado Pago QR"),
+                    "message": _("El QR venció, fue cancelado o el pago fue rechazado. "
+                                 "El pedido sigue en presupuesto y sin factura: puede "
+                                 "elegir otro medio de pago o generar un QR nuevo."),
+                    "type": "warning",
+                    "sticky": True,
+                    "next": {"type": "ir.actions.act_window_close"},
+                },
+            }
+        return self.tx_id.sudo().action_mp_open_qr()
 
     def action_cancel_order(self):
         self.tx_id.sudo().mp_payment_order_cancel()
         self.tx_id.sudo()._set_canceled(f"Canceled by user {self.env.user.name}")
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Mercado Pago QR"),
+                "message": _("Se canceló el código QR. El pedido sigue en presupuesto "
+                             "y sin factura; puede continuar con otro medio de pago."),
+                "type": "info",
+                "sticky": False,
+                "next": {"type": "ir.actions.act_window_close"},
+            },
+        }

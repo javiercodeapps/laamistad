@@ -3,3 +3,4 @@ from . import sale_order
 from . import account_move
 from . import popup_confirmation
 from . import mp_link_wizard
+from . import payment_transaction

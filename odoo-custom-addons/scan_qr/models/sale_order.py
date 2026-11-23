@@ -176,12 +176,18 @@ class SaleOrderQR(models.Model):
         caja = self.env['account.cashbox.session'].search([('state','=','opened'),])
         context = self.env.context
         # Find the Sale Order Type where the name contains 'Efectivo' or 'Tarjeta' or 'Mercado Pago' or 'CC'
-        payment_type = context.get('payment_type')
-        if efectivo:
-            efectivo=float(efectivo)
-        if efectivo and efectivo > 0:
-            payment_type = 'Multiple'
+        selected_payment_type = context.get('payment_type')
         label = context.get('label')
+        if efectivo:
+            efectivo = float(efectivo)
+        # Monto en efectivo de un pago múltiple: viene del popup ('text') o del
+        # campo 'efectivo' cargado directamente en el formulario del pedido.
+        efectivo_amount = float(efectivo or 0) or (self.efectivo or 0)
+        payment_type = selected_payment_type
+        if efectivo and efectivo > 0:
+            # El popup de efectivo antes pisaba el medio elegido con 'Multiple',
+            # por lo que su botón 'MP QR' nunca llegaba a generar el QR.
+            payment_type = 'MP QR' if selected_payment_type == 'MP QR' else 'Multiple'
         if payment_type == 'MP':
             popup = self.env['scan_qr.popup.confirmation']
             action = popup.show_mp(self, 'Selccion el metodo a utilizar', 'action_confirm_type')
@@ -191,6 +197,14 @@ class SaleOrderQR(models.Model):
             popup = self.env['scan_qr.popup.confirmation']
             action = popup.show_efectivo(self, 'Ingreso el monto en efectivo y seleccione el otro metodo de pago <h3>Total: %s</h3>' % self.amount_total, 'action_confirm_type')
             return action
+
+        # Si hay un QR pendiente y se va a finalizar con OTRO medio de pago, lo
+        # cancelamos: un IPN tardío no debe confirmar/facturar dos veces.
+        if payment_type != 'MP QR':
+            self._mp_qr_cancel_pending('Se eligió el medio de pago %s' % payment_type)
+        if payment_type == 'MP QR' and not self._mp_qr_provider():
+            raise UserError(_("No se encontró el proveedor 'MP QR' habilitado para la compañía %s.")
+                            % self.company_id.name)
 
         sale_order_type = self.env["sale.order.type"].search([("name", "ilike", payment_type),("company_id","=",self.company_id.id)], limit=1)
         if self.state == 'sale':
@@ -202,10 +216,10 @@ class SaleOrderQR(models.Model):
             # método el que lo pasa a CTACTE.
             if sale_order_type and payment_type != 'MP Link':
                 self.type_id = sale_order_type.id
-            provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('state','=','enabled'),('company_id.id','=',self.company_id.id)],limit=1)
-            if payment_type == 'MP QR' and provider:
-                payment_provider = self.pay_mp_qr()
-                self.payment_provider = payment_provider.id
+            if payment_type == 'MP QR':
+                # Pedido ya confirmado/facturado por otro medio: se genera el QR,
+                # pero al acreditarse NO se vuelve a facturar.
+                self.pay_mp_qr(self.efectivo or 0)
                 return self.pay_mp_qr_wizard()
             if payment_type == 'MP Link':
                 # Vamos a verificar si la orden tiene un link activo antes de generar uno nuevo
@@ -257,6 +271,11 @@ class SaleOrderQR(models.Model):
         _logger.info('%s %s %s %s' % (payment_type,efectivo,context.get('payment_type'),sale_order_type ) )
         self.type_id=sale_order_type.id
         self.env.cr.commit()
+        if payment_type == 'MP QR':
+            # MP QR NO confirma ni factura acá: el pedido se mantiene en
+            # PRESUPUESTO (draft) y sin factura. Recién cuando Mercado Pago
+            # acredita el pago se confirma el pedido y se emite la factura.
+            return self._mp_qr_start(caja, efectivo_amount)
         if payment_type == 'CTACTE':
             tag_id = self.env["crm.tag"].search([('name','=','CTACTE')])
             self.tag_ids = tag_id.ids 
@@ -278,22 +297,7 @@ class SaleOrderQR(models.Model):
                 self.caja_id = caja.id
             self.action_confirm()
             self.is_admin = False
-            provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('state','=','enabled'),('company_id.id','=',self.company_id.id)],limit=1)
-            if payment_type == 'MP QR' and provider:
-                if self.efectivo > 0:
-                    for moves in self.invoice_ids:
-                        sale_efectivo = self.env["sale.order.type"].search([("name", "ilike", 'Efectivo'),("company_id","=",self.company_id.id)], limit=1)
-                        sale_varios = self.env["sale.order.type"].search([("name", "ilike", 'Varios'),("company_id","=",self.company_id.id)], limit=1)
-                        pay1=self.pay_multiple(moves,sale_efectivo.payment_journal_id,self.efectivo)
-                        self.reconciliar_venta(moves,[pay1])
-                        payment_provider = self.pay_mp_qr(self.efectivo)
-                        self.payment_provider = payment_provider.id
-                        self.type_id = sale_varios.id
-                else:
-                    payment_provider = self.pay_mp_qr(self.efectivo)
-                    self.payment_provider = payment_provider.id
-                return self.pay_mp_qr_wizard()
-            elif payment_type != 'CTACTE Factura':
+            if payment_type != 'CTACTE Factura':
                 for moves in self.invoice_ids:
                     if self.type_id.name != 'Efectivo' and self.efectivo > 0:
                         sale_efectivo = self.env["sale.order.type"].search([("name", "ilike", 'Efectivo'),("company_id","=",self.company_id.id)], limit=1)
@@ -614,18 +618,44 @@ class SaleOrderQR(models.Model):
             'target': 'current',
         }
 
-    def pay_mp_qr_wizard(self):
-        _logger.info('Abriendo QR 1 %s %s' % (self.payment_status,self.payment_provider) )
-        if self.payment_provider and self.payment_provider.state in ['draft','pending']:
-            _logger.info('Abriendo QR 2')
-            return self.payment_provider.action_mp_open_qr()
+    def pay_mp_qr_wizard(self, tx=None):
+        """Abre el QR sólo si la transacción sigue pendiente.
+
+        Si ya se acreditó o se canceló/venció se avisa en lugar de devolver
+        ``None`` (que cerraba el diálogo sin explicación)."""
+        tx = tx or self.payment_provider
+        _logger.info('Abriendo QR 1 %s %s' % (self.payment_status, tx))
+        if not tx:
+            return self._mp_link_notify_action(
+                _('No hay un código QR de Mercado Pago generado para este pedido.'), 'warning')
+        if tx.state in ('done', 'authorized'):
+            return self._mp_link_notify_action(
+                _('El pago del QR de Mercado Pago ya fue registrado.'), 'success', reload=True)
+        if tx.state in ('cancel', 'error'):
+            return self._mp_link_notify_action(
+                _('El QR de Mercado Pago fue cancelado o venció. El pedido sigue en '
+                  'presupuesto y sin factura: puede elegir otro medio de pago o '
+                  'volver a generar el QR.'), 'warning', reload=True)
+        _logger.info('Abriendo QR 2')
+        return tx.action_mp_open_qr()
 
     def pay_mp_qr(self,efectivo=0):
+        """Genera la orden QR en Mercado Pago SIN facturar el pedido."""
+        self.ensure_one()
+        if self.state == 'cancel':
+            raise UserError(_('No se puede generar un QR para el pedido cancelado %s.') % self.name)
+        if self.payment_status == 'Paid':
+            raise UserError(_('El pedido %s ya está pago; no se genera un QR nuevo.') % self.name)
+        # Si quedó un QR pendiente (regeneración), se cancela antes de crear otro.
+        self._mp_qr_cancel_pending('Se generó un nuevo QR de Mercado Pago', post_message=False)
         transaction_vals = self.prepare_payment_mp_qr(efectivo)
         if not transaction_vals:
             return True
         wizard_sudo = self.sudo()
         transaction = wizard_sudo.env["payment.transaction"].create(transaction_vals)
+        # Enlazar ANTES de consultar Mercado Pago: si la API respondiera 'paid'
+        # en el primer GET, el enganche de confirmación debe encontrar el pedido.
+        self.payment_provider = transaction.id
         transaction.mp_payment_order_create()
         transaction.mp_payment_order_get()
         _logger.info('Espero que se procese el pago')
@@ -1174,19 +1204,193 @@ class SaleOrderQR(models.Model):
         
         return result
 
+    ########################################################################
+    ### MP QR: el pedido se mantiene en PRESUPUESTO hasta que el pago se acredita
+    ########################################################################
+
+    def _mp_qr_provider(self):
+        """Proveedor 'MP QR' habilitado para la compañía del pedido."""
+        self.ensure_one()
+        return self.env["payment.provider"].sudo().search([
+            ('name', '=', 'MP QR'),
+            ('state', '=', 'enabled'),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+
+    def _mp_qr_invoices(self):
+        """Facturas de venta no canceladas (funciona sobre un recordset)."""
+        return self.mapped('invoice_ids').filtered(
+            lambda inv: inv.move_type == 'out_invoice' and inv.state != 'cancel')
+
+    def _mp_qr_pending_transactions(self):
+        """Transacciones QR todavía pendientes ligadas a este pedido."""
+        self.ensure_one()
+        tx_model = self.env['payment.transaction'].sudo()
+        txs = tx_model.browse()
+        if self.payment_provider and self.payment_provider.state in ('draft', 'pending'):
+            txs |= self.payment_provider
+        # Compatibilidad con transacciones creadas antes de este cambio, que se
+        # vinculaban al pedido mediante sale_order_ids.
+        txs |= tx_model.search([
+            ('sale_order_ids', 'in', [self.id]),
+            ('provider_id.code', '=', 'mercado_pago_qr'),
+            ('state', 'in', ('draft', 'pending')),
+        ])
+        return txs
+
+    def _mp_qr_cancel_pending(self, reason=None, post_message=True):
+        """Cancela el QR pendiente SIN tocar el pedido.
+
+        El presupuesto queda sin factura y se puede cobrar por otro medio. Un
+        IPN tardío sobre una transacción cancelada no factura (fail closed).
+        """
+        self.ensure_one()
+        txs = self._mp_qr_pending_transactions()
+        for tx in txs:
+            if hasattr(tx, 'mp_payment_order_cancel'):
+                try:
+                    tx.sudo().mp_payment_order_cancel()
+                except Exception:
+                    _logger.exception('MP QR: no se pudo cancelar la orden %s en Mercado Pago',
+                                      tx.provider_reference or tx.reference)
+            tx.sudo()._set_canceled(reason or 'QR cancelado desde el pedido de venta')
+            if post_message:
+                self.message_post(body=_(
+                    'Se canceló el código QR de Mercado Pago pendiente (%s). El pedido '
+                    'sigue en presupuesto y sin factura; puede continuar con otro '
+                    'medio de pago.') % tx.reference)
+        return txs
+
+    def _mp_qr_start(self, caja, efectivo_amount=0):
+        """Genera el código QR SIN confirmar ni facturar el pedido.
+
+        El pedido sigue en estado 'draft' (Presupuesto). La factura se emite
+        recién en ``_mp_qr_confirm_and_invoice``, cuando el pago se acredita.
+        """
+        self.ensure_one()
+        if not self._mp_qr_provider():
+            raise UserError(_("No se encontró el proveedor 'MP QR' habilitado para la compañía %s.")
+                            % self.company_id.name)
+        # Si ya hay un QR vigente para el pedido NO generamos otro: primero
+        # refrescamos su estado en Mercado Pago (por si el IPN no llegó) y
+        # reabrimos el mismo QR. Así se evita un segundo cobro. Si el total del
+        # pedido cambió (se agregaron productos), el QR viejo ya no sirve.
+        pending = self._mp_qr_pending_transactions()
+        expected_amount = self.amount_total - (efectivo_amount or 0)
+        if pending and float_compare(
+                pending[:1].amount, expected_amount,
+                precision_rounding=self.currency_id.rounding or 0.01) == 0:
+            tx = pending[:1]
+            try:
+                tx.sudo().mp_payment_order_get()
+            except Exception:
+                _logger.exception('MP QR: no se pudo refrescar el estado del QR %s', tx.reference)
+            if tx.state in ('draft', 'pending', 'authorized', 'done'):
+                return self.pay_mp_qr_wizard(tx)
+            # Venció o se canceló: seguimos abajo y generamos uno nuevo.
+        elif pending:
+            self._mp_qr_cancel_pending('El total del pedido cambió; se regenera el QR')
+        if self.type_id.name == 'Efectivo':
+            self.apply_redondeo()
+            if abs(self.redondeo) > 1000:
+                raise UserError('No puede aplicar un redondeo mayor a 1.000 (%s) ' % self.redondeo)
+        # El descuento se aplica ANTES de crear la transacción: el importe del
+        # QR tiene que coincidir con el total definitivo del pedido.
+        self.apply_discount()
+        if not self.caja_id:
+            self.caja_id = caja.id
+        # Guardamos la parte en efectivo para registrar su cobro al acreditarse
+        # el QR (antes no existe factura contra la cual imputarla).
+        self.efectivo = efectivo_amount
+        self.is_admin = False
+        tx = self.pay_mp_qr(self.efectivo or 0)
+        if not tx:
+            raise UserError(_('No se pudo generar el código QR de Mercado Pago.'))
+        return self.pay_mp_qr_wizard()
+
+    def _mp_qr_register_cash(self, invoices):
+        """Registra la parte en efectivo de un pago múltiple. Se ejecuta recién
+        cuando el QR se acreditó y la factura ya existe."""
+        self.ensure_one()
+        if not self.efectivo or self.efectivo <= 0:
+            return True
+        sale_efectivo = self.env["sale.order.type"].search(
+            [("name", "ilike", 'Efectivo'), ("company_id", "=", self.company_id.id)], limit=1)
+        sale_varios = self.env["sale.order.type"].search(
+            [("name", "ilike", 'Varios'), ("company_id", "=", self.company_id.id)], limit=1)
+        if not sale_efectivo or not sale_efectivo.payment_journal_id:
+            raise UserError(_("El tipo de pedido 'Efectivo' no tiene configurado el diario de pago."))
+        for invoice in invoices:
+            pay = self.pay_multiple(invoice, sale_efectivo.payment_journal_id, self.efectivo)
+            if pay:
+                self.reconciliar_venta(invoice, [pay])
+        if sale_varios:
+            self.type_id = sale_varios.id
+        return True
+
+    def _mp_qr_confirm_and_invoice(self, tx):
+        """Confirma el presupuesto y emite la factura.
+
+        Se llama ÚNICAMENTE desde el enganche del proveedor, después de
+        verificar que el pago del QR es correcto.
+        """
+        self.ensure_one()
+        if self.state == 'cancel':
+            raise UserError(_("El pedido %s está cancelado; no se puede facturar.") % self.name)
+        invoices = self._mp_qr_invoices()
+        if self.state in ('draft', 'sent'):
+            # 'sale_order_type_automation' crea y publica la factura al confirmar.
+            # La transacción sigue en 'pending' y NO está vinculada por
+            # sale_order_ids, así que la automatización no omite la facturación.
+            self.action_confirm()
+            invoices = self._mp_qr_invoices()
+        if not invoices:
+            self._create_invoices(final=True)
+            invoices = self._mp_qr_invoices()
+        if not invoices:
+            raise UserError(_("No se pudieron crear las facturas del pedido %s.") % self.name)
+        invoices.filtered(lambda inv: inv.state == 'draft').action_post()
+        # Vincular la factura a la transacción: account_payment._create_payment
+        # la usa para crear el cobro del QR y conciliarlo.
+        tx.sudo().invoice_ids = [(6, 0, invoices.ids)]
+        self._mp_qr_register_cash(invoices)
+        self.message_post(body=_(
+            'Pago del QR de Mercado Pago acreditado (%s). Se confirmó el pedido, '
+            'se emitieron las facturas %s y se registró el cobro.')
+            % (tx.reference, ', '.join(invoices.mapped('name'))))
+        return invoices
+
+    def _mp_qr_payment_warning(self, message):
+        """Deja constancia en el chatter de un pago que NO se pudo verificar."""
+        _logger.warning('MP QR: %s' % message)
+        for order in self:
+            order.message_post(body=_('Mercado Pago QR: %s') % message)
+        return True
+
     def prepare_payment_mp_qr(self,efectivo=0):
         self.ensure_one()
-        provider = self.env["payment.provider"].sudo().search([('name','=','MP QR'),('company_id.id','=',self.company_id.id)],limit=1)
+        provider = self._mp_qr_provider() or self.env["payment.provider"].sudo().search(
+            [('name','=','MP QR'),('company_id.id','=',self.company_id.id)],limit=1)
         if not provider:
             return False
         _logger.info('PROVIDER %s' % provider)
+        amount = self.amount_total - (efectivo or 0)
+        if amount <= 0:
+            raise UserError(_('El importe del QR debe ser mayor que cero. Revise el '
+                              'monto en efectivo del pago múltiple.'))
         res = { "provider_id": int(provider.id),
                 "reference": self.env["payment.transaction"]._compute_reference( provider.code, prefix=self.name),
-                "amount": self.amount_total - efectivo,
+                "amount": amount,
                 "currency_id": self.currency_id.id,
                 "partner_id": self.partner_id.id,
               }
-        res["invoice_ids"] = [(6, 0, [self.invoice_ids.id])]
-        res["sale_order_ids"] = [(6, 0, [self.id])]
-
+        # Sólo se vinculan facturas que YA existan (pedido confirmado por otro
+        # medio). En el flujo normal NO hay factura al generar el QR: se crea
+        # al acreditarse el pago.
+        invoices = self._mp_qr_invoices()
+        if invoices:
+            res["invoice_ids"] = [(6, 0, invoices.ids)]
+        # NO se setea sale_order_ids: así el módulo 'sale' no marca el
+        # presupuesto como enviado ni envía correos, y _invoice_sale_orders no
+        # pisa invoice_ids cuando llegue el pago.
         return res

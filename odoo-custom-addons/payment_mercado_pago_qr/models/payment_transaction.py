@@ -115,6 +115,23 @@ class PaymentTransaction(models.Model):
         elif status == "expired" or status_detail == "expired":
             self._set_canceled("The order is expired")
         elif status == "paid" or status_detail == 'accredited':
+            # Recién acá se confirma el presupuesto y se factura (cuando
+            # scan_qr está instalado). Antes de marcar 'done' se revalidan el
+            # importe y la referencia contra la respuesta de la API: si falla,
+            # NO se factura, NO se registra el cobro y la transacción sigue
+            # pendiente para poder reintentar.
+            prepare = getattr(self, '_mp_qr_prepare_documents', None)
+            if prepare:
+                try:
+                    prepared = prepare(resp, expected_amount=self.amount)
+                except Exception:
+                    _logger.exception(
+                        "MP QR %s: error al preparar los documentos de venta", self.reference)
+                    prepared = False
+                if prepared is False:
+                    _logger.warning("MP QR %s: pago no verificado; no se factura.",
+                                    self.reference)
+                    return resp
             total_paid = resp.get("total_amount")
             if total_paid:
                 self.amount = float(total_paid)
