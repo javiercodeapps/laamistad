@@ -202,9 +202,6 @@ class SaleOrderQR(models.Model):
         # cancelamos: un IPN tardío no debe confirmar/facturar dos veces.
         if payment_type != 'MP QR':
             self._mp_qr_cancel_pending('Se eligió el medio de pago %s' % payment_type)
-        if payment_type == 'MP QR' and not self._mp_qr_provider():
-            raise UserError(_("No se encontró el proveedor 'MP QR' habilitado para la compañía %s.")
-                            % self.company_id.name)
 
         sale_order_type = self.env["sale.order.type"].search([("name", "ilike", payment_type),("company_id","=",self.company_id.id)], limit=1)
         if self.state == 'sale':
@@ -650,7 +647,9 @@ class SaleOrderQR(models.Model):
         self._mp_qr_cancel_pending('Se generó un nuevo QR de Mercado Pago', post_message=False)
         transaction_vals = self.prepare_payment_mp_qr(efectivo)
         if not transaction_vals:
-            return True
+            # Sin proveedor no se crea la transacción; el llamador avisa y el
+            # pedido sigue en presupuesto, sin factura.
+            return False
         wizard_sudo = self.sudo()
         transaction = wizard_sudo.env["payment.transaction"].create(transaction_vals)
         # Enlazar ANTES de consultar Mercado Pago: si la API respondiera 'paid'
@@ -1209,13 +1208,36 @@ class SaleOrderQR(models.Model):
     ########################################################################
 
     def _mp_qr_provider(self):
-        """Proveedor 'MP QR' habilitado para la compañía del pedido."""
+        """Proveedor de Mercado Pago QR para el pedido.
+
+        NO se filtra por ``state``: ese campo sólo controla la visibilidad del
+        proveedor en el checkout del sitio web. Las órdenes QR presenciales se
+        crean por API con ``mercado_pago_qr_access_token`` y funcionan con el
+        proveedor en 'enabled', 'test' o incluso 'disabled' (así funcionaba
+        ``prepare_payment_mp_qr`` antes del cambio). Se prefiere el nombre
+        histórico 'MP QR' y la compañía del pedido; luego se tolera el código
+        del proveedor y otras compañías, para no romper la caja.
+        """
         self.ensure_one()
-        return self.env["payment.provider"].sudo().search([
-            ('name', '=', 'MP QR'),
-            ('state', '=', 'enabled'),
-            ('company_id', '=', self.company_id.id),
-        ], limit=1)
+        Provider = self.env["payment.provider"].sudo()
+        company = self.company_id.id
+        for domain in (
+            [('name', '=', 'MP QR'), ('company_id', '=', company)],
+            [('name', '=', 'MP QR')],
+            [('code', '=', 'mercado_pago_qr'), ('company_id', '=', company)],
+            [('code', '=', 'mercado_pago_qr')],
+        ):
+            provider = Provider.search(domain, limit=1)
+            if provider:
+                return provider
+        candidatos = Provider.search([
+            '|', ('name', '=', 'MP QR'), ('code', '=', 'mercado_pago_qr')])
+        _logger.warning(
+            'MP QR: no se encontró proveedor para la compañía %s (id=%s). '
+            'Proveedores con name="MP QR"/code="mercado_pago_qr": %s',
+            self.company_id.name, self.company_id.id,
+            [(p.id, p.name, p.code, p.state, p.company_id.id) for p in candidatos])
+        return Provider.browse()
 
     def _mp_qr_invoices(self):
         """Facturas de venta no canceladas (funciona sobre un recordset)."""
@@ -1268,9 +1290,6 @@ class SaleOrderQR(models.Model):
         recién en ``_mp_qr_confirm_and_invoice``, cuando el pago se acredita.
         """
         self.ensure_one()
-        if not self._mp_qr_provider():
-            raise UserError(_("No se encontró el proveedor 'MP QR' habilitado para la compañía %s.")
-                            % self.company_id.name)
         # Si ya hay un QR vigente para el pedido NO generamos otro: primero
         # refrescamos su estado en Mercado Pago (por si el IPN no llegó) y
         # reabrimos el mismo QR. Así se evita un segundo cobro. Si el total del
@@ -1305,7 +1324,12 @@ class SaleOrderQR(models.Model):
         self.is_admin = False
         tx = self.pay_mp_qr(self.efectivo or 0)
         if not tx:
-            raise UserError(_('No se pudo generar el código QR de Mercado Pago.'))
+            # Sin proveedor configurado no se genera el QR, pero el pedido
+            # SIGUE en presupuesto y sin factura: se puede cobrar por otro medio.
+            return self._mp_link_notify_action(
+                _('No se encontró el proveedor de Mercado Pago QR para la compañía %s. '
+                  'Revise la configuración del proveedor o cobre con otro medio de pago.')
+                % self.company_id.name, 'warning', reload=True)
         return self.pay_mp_qr_wizard()
 
     def _mp_qr_register_cash(self, invoices):
@@ -1369,9 +1393,10 @@ class SaleOrderQR(models.Model):
 
     def prepare_payment_mp_qr(self,efectivo=0):
         self.ensure_one()
-        provider = self._mp_qr_provider() or self.env["payment.provider"].sudo().search(
-            [('name','=','MP QR'),('company_id.id','=',self.company_id.id)],limit=1)
+        provider = self._mp_qr_provider()
         if not provider:
+            _logger.warning('MP QR: no se generó la transacción porque no hay proveedor '
+                            'configurado para %s.', self.company_id.name)
             return False
         _logger.info('PROVIDER %s' % provider)
         amount = self.amount_total - (efectivo or 0)
