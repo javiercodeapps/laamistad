@@ -87,14 +87,14 @@ class SaleOrder(models.Model):
                                     activo = True
                     if activo:
                         _logger.info('DESCUENTO %s %s ' % (discount.sale_order_type.name,discount.dia) )
-                        for line in self.order_line:
+                        for line in order.order_line:
                             if line.product_id.id == discount.product_id.id:
                                 line.write({"price_unit":0})
                         if total > discount.monto:
                             order.sale_discount = total * discount.discount / 100
                             order.sale_with_discount = total - order.sale_discount
                             order.sale_discount_percent = discount.discount
-                            for line in self.order_line:
+                            for line in order.order_line:
                                 if line.product_id.id == discount.product_id.id:
                                     line.write({"price_unit":-order.sale_discount})
                             _logger.info('CALCULAR DESCUENTO %s ' %  total)
@@ -162,7 +162,7 @@ class SaleOrder(models.Model):
                     product = discount.product_id
             # pongo en 0 todos los descuentos
             for p in prds:
-                for line in self.order_line:
+                for line in order.order_line:
                     if line.product_id.id == p.id:
                         line.write({"price_unit":0,"product_uom_qty":0})
             
@@ -170,7 +170,7 @@ class SaleOrder(models.Model):
             if len(dd) > 0:
                 # Reviso si esta el codigo en la orden y separo proporcionalmente los montos por diretente iva
                 taxes ={}
-                for line in self.order_line:
+                for line in order.order_line:
                     if line.product_id.id == product.id:
                         #line.write({"price_unit":order.sale_discount * -1})
                         line.unlink()
