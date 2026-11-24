@@ -411,9 +411,36 @@ class SaleOrderQR(models.Model):
             if not ctacte_type:
                 raise UserError(_("No se encontró el tipo de pedido 'CTACTE' para la compañía %s.")
                                 % order.company_id.name)
+            order._mp_link_check_invoice_feasible(ctacte_type)
             order.type_id = ctacte_type.id
             order.tag_ids = [(4, tag.id) for tag in tags]
         return True
+
+    def _mp_link_check_invoice_feasible(self, ctacte_type):
+        """Evita el peor escenario del link: cobrar y no poder facturar.
+
+        Si el diario de facturación del tipo es electrónico (usa comprobantes),
+        l10n_ar necesita la condición frente al IVA del cliente para elegir el
+        tipo de documento (A/B/C). Sin ese dato la factura no se puede emitir
+        y el pago queda sin registrar, así que se avisa ANTES de generar el
+        link."""
+        self.ensure_one()
+        journal = ctacte_type.journal_id
+        partner = self.partner_id
+        if not journal or 'l10n_latam_use_documents' not in journal._fields:
+            return True
+        if 'l10n_ar_afip_responsibility_type_id' not in partner._fields:
+            return True
+        if not journal.l10n_latam_use_documents:
+            return True
+        if partner.l10n_ar_afip_responsibility_type_id:
+            return True
+        raise UserError(_(
+            'El cliente "%s" no tiene configurada la condición frente al IVA '
+            '(AFIP). El diario "%s" del tipo de pedido "%s" emite comprobantes '
+            'electrónicos y la necesita para facturar: configúrela en el cliente '
+            'antes de generar el link de pago.')
+            % (partner.display_name, journal.display_name, ctacte_type.name))
 
     def _mp_link_provider(self):
         """Configuración de Mercado Pago Point de la compañía de la orden."""
@@ -1040,7 +1067,8 @@ class SaleOrderQR(models.Model):
             reason['retry'] = False
             _logger.exception('MP link: error al facturar/pagar las órdenes %s'
                               % ', '.join(orders.mapped('name')))
-            orders.message_post(body='Error al facturar/pagar el pago del link de Mercado Pago. Revise las órdenes.')
+            orders.message_post(body='Error al facturar/pagar el pago del link de '
+                                     'Mercado Pago: %s' % (e,))
         if pagadas:
             # El cobro YA quedó registrado: un error al avisar en el canal o al
             # cambiar el tipo de pedido no debe revertirlo (antes la excepción
@@ -1195,6 +1223,50 @@ class SaleOrderQR(models.Model):
         """Facturas de venta no canceladas de la orden."""
         return self.invoice_ids.filtered(lambda i: i.move_type == 'out_invoice' and i.state != 'cancel')
 
+    def _mp_link_ensure_document_types(self, invoices):
+        """Asegura el tipo de documento de las facturas antes de publicarlas.
+
+        En Argentina, un diario electrónico (`l10n_latam_use_documents`) exige
+        `l10n_latam_document_type_id`. l10n_ar lo deduce del diario y de la
+        condición frente al IVA del cliente; si no puede (por ejemplo, porque
+        el cliente no la tiene configurada), el posteo revienta con un error
+        técnico de l10n_latam ("El diario requiere un tipo de documento...")
+        y el cobro del link no se puede registrar. Acá se resuelve cuando hay
+        un tipo disponible y, si no, se avisa con un mensaje accionable.
+        """
+        for invoice in invoices.filtered(lambda i: i.state == 'draft'):
+            if 'l10n_latam_document_type_id' not in invoice._fields:
+                continue
+            if not invoice.l10n_latam_use_documents:
+                continue
+            if not invoice.l10n_latam_document_type_id:
+                # El campo es calculado: al leerlo se recalcula con el cliente
+                # y el diario actuales de la factura.
+                candidatos = invoice.l10n_latam_available_document_type_ids
+                if candidatos:
+                    invoice.l10n_latam_document_type_id = candidatos[:1].id
+            if not invoice.l10n_latam_document_type_id:
+                partner = invoice.partner_id
+                if 'l10n_ar_afip_responsibility_type_id' in partner._fields:
+                    responsabilidad = (partner.l10n_ar_afip_responsibility_type_id.name
+                                       or 'sin configurar')
+                else:
+                    responsabilidad = 'sin el módulo de localización argentina'
+                raise UserError(_(
+                    'No se puede emitir la factura del pedido %(pedido)s: el diario '
+                    '"%(diario)s" exige un tipo de documento y no hay ninguno '
+                    'disponible para el cliente "%(cliente)s" (condición frente al '
+                    'IVA: %(resp)s). Revise la condición frente al IVA del cliente '
+                    'y los tipos de documento habilitados en el diario; después '
+                    'vuelva a verificar el pago del link.')
+                    % {
+                        'pedido': invoice.invoice_origin or '-',
+                        'diario': invoice.journal_id.display_name,
+                        'cliente': partner.display_name,
+                        'resp': responsabilidad,
+                    })
+        return True
+
     def _mp_link_prepare_invoices(self):
         """Confirma las órdenes del link (si hace falta) y devuelve sus facturas
         de venta publicadas."""
@@ -1211,7 +1283,9 @@ class SaleOrderQR(models.Model):
             if not order_invoices:
                 raise UserError(_("No se pudieron crear las facturas de la orden %s.") % order.name)
             invoices |= order_invoices
-        invoices.filtered(lambda i: i.state == 'draft').action_post()
+        a_publicar = invoices.filtered(lambda i: i.state == 'draft')
+        self._mp_link_ensure_document_types(a_publicar)
+        a_publicar.action_post()
         return invoices
 
     def _mp_link_invoice_and_pay(self):

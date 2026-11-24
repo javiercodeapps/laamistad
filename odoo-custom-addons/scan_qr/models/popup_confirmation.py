@@ -13,6 +13,12 @@ class CustomPopupConfirmation(models.TransientModel):
 
     message = fields.Char()
     text  = fields.Char()
+    # Monto NUMÉRICO del popup de efectivo. Antes se usaba `text` (Char) con
+    # widget="float" en la vista: al guardar el popup (se guarda al apretar
+    # cualquier botón del footer) el valor volvía del servidor como string y
+    # FloatField revienta con "(value || 0).toFixed is not a function". Un
+    # Float de verdad formatea y parsea siempre bien.
+    monto = fields.Float(string='Monto')
     callback = fields.Char()
     source_model = fields.Char()
 
@@ -99,6 +105,10 @@ class CustomPopupConfirmation(models.TransientModel):
                 message = 'model {} dont have function {}'.format(self.source_model, self.callback)
                 _logger.warning(message)
                 raise UserError(message)
+            if self.monto:
+                # Popup de efectivo: monto numérico (Float). El callback
+                # (action_confirm_type) le hace float() igual.
+                return callback(self.monto)
             if self.text:
                 return callback(self.text)
             return callback()

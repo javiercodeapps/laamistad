@@ -31,7 +31,7 @@
                 <newline/>
                 <separator colspan="6"/>
 		<h2>
-                    <field name="text" widget="float" nolabel="1" />                                                            
+                    <field name="monto" widget="float" nolabel="1" />                                                            
 	        </h2>
                 <footer>
                     <button name="confirm" type="object" string="OTROS"  context="{'payment_type': 'OTROS'}" class="btn btn-primary px-4 py-4"/>

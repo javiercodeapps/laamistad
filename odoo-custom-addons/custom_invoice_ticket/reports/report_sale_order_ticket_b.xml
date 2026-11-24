@@ -46,10 +46,10 @@
                     <table class="table table-sm table-borderless mt-2" style="width: 100%; font-size: 12px;">
                         <thead>
                             <tr class="border-bottom">
-                                <th class="text-right">Cant</th>
                                 <th class="text-left">Descripcion</th>
+                                <th class="text-right">Cant</th>
                                 <th class="text-left">Precio</th>
-                                <th class="text-right">SubTotal</th>
+                                <th class="text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -70,17 +70,17 @@
                                 </t>
                                 <t t-else="">
                                 <tr>
-                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
-                                        <span t-field="line.product_uom_qty" />
-                                    </td>
                                     <td class="text-left" style="text-align: left; vertical-align: middle;">
                                         <span t-field="line.name" />
+                                    </td>
+                                    <td class="text-right" style="text-align: right; vertical-align: middle;">
+                                        <span t-field="line.product_uom_qty" />
                                     </td>
                                     <td class="text-left" style="text-align: left; vertical-align: middle;">
                                         <span t-field="line.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
                                     </td>
                                     <td class="text-right" style="text-align: right; vertical-align: middle;">
-                                        <span t-field="line.price_subtotal" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
+                                        <span t-field="line.price_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
                                     </td>
                                 </tr>
                                 </t>
