@@ -43,14 +43,16 @@ class SaleOrderQR(models.Model):
 
     def write(self, vals):
         res = super().write(vals)
-        # Mientras el pedido está en presupuesto por un MP QR, cualquier cambio
-        # en las líneas de producto tiene que recalcular el descuento: si no,
-        # las líneas de descuento (y el importe del QR) quedan con el valor
-        # viejo. Sólo afecta a pedidos con un QR generado y se protege con un
-        # flag de contexto para no reentrar desde apply_discount().
+        # Mientras el QR está vigente, cualquier cambio en las líneas de
+        # producto recalcula el importe del descuento (SIN agregar códigos al
+        # presupuesto). Sólo afecta a pedidos con un QR generado y se protege
+        # con un flag de contexto para no reentrar.
         if 'order_line' in vals and not self.env.context.get('mp_qr_no_discount_recalc'):
+            # Sólo mientras el QR está VIGENTE. Tras cancelar no se debe volver
+            # a aplicar el descuento: el pedido ya fue revertido.
             orders = self.filtered(
-                lambda o: o.state in ('draft', 'sent') and o._mp_qr_discount_applied())
+                lambda o: o.state in ('draft', 'sent')
+                and o.payment_provider.sudo().state in ('draft', 'pending'))
             if orders:
                 try:
                     orders.with_context(
@@ -236,12 +238,10 @@ class SaleOrderQR(models.Model):
             # recalcular el descuento, porque éste depende del tipo de pedido.
             self._mp_qr_restore_previous_type()
             if qr_discount_applied:
-                # Al generar el QR se ejecutó apply_discount() para que el
-                # importe del código fuera el definitivo. apply_discount() NO
-                # es idempotente: hay que quitar esas líneas para que el nuevo
-                # medio recalcule el descuento con SU tipo de pedido. Si no,
-                # se descuenta dos veces (y puede dividir por cero).
-                self._mp_qr_reset_discount()
+                # Recalcular el descuento con el tipo ya restaurado, SIN dejar
+                # códigos aplicados en el presupuesto: los agregará el nuevo
+                # medio de pago al confirmar.
+                self._mp_qr_recalc_discount()
 
         sale_order_type = self.env["sale.order.type"].search([("name", "ilike", payment_type),("company_id","=",self.company_id.id)], limit=1)
         if self.state == 'sale':
@@ -681,16 +681,21 @@ class SaleOrderQR(models.Model):
         _logger.info('Abriendo QR 2')
         return tx.action_mp_open_qr()
 
-    def pay_mp_qr(self,efectivo=0):
-        """Genera la orden QR en Mercado Pago SIN facturar el pedido."""
+    def pay_mp_qr(self,efectivo=0, amount=None):
+        """Genera la orden QR en Mercado Pago SIN facturar el pedido.
+
+        ``amount`` es el importe a cobrar ya calculado por _mp_qr_start()
+        (total con el descuento de MP QR pero sin líneas de descuento).
+        """
         self.ensure_one()
         if self.state == 'cancel':
             raise UserError(_('No se puede generar un QR para el pedido cancelado %s.') % self.name)
         if self.payment_status == 'Paid':
             raise UserError(_('El pedido %s ya está pago; no se genera un QR nuevo.') % self.name)
         # Si quedó un QR pendiente (regeneración), se cancela antes de crear otro.
-        self._mp_qr_cancel_pending('Se generó un nuevo QR de Mercado Pago', post_message=False)
-        transaction_vals = self.prepare_payment_mp_qr(efectivo)
+        self._mp_qr_cancel_pending('Se generó un nuevo QR de Mercado Pago',
+                                   post_message=False, revert=False)
+        transaction_vals = self.prepare_payment_mp_qr(efectivo, amount=amount)
         if not transaction_vals:
             # Sin proveedor no se crea la transacción; el llamador avisa y el
             # pedido sigue en presupuesto, sin factura.
@@ -1305,8 +1310,13 @@ class SaleOrderQR(models.Model):
         ])
         return txs
 
-    def _mp_qr_cancel_pending(self, reason=None, post_message=True):
-        """Cancela el QR pendiente SIN tocar el pedido.
+    def _mp_qr_cancel_pending(self, reason=None, post_message=True, revert=True):
+        """Cancela el QR pendiente.
+
+        ``revert=True`` (por defecto) además devuelve el pedido a su estado
+        previo: tipo de pedido y descuento. Sólo se usa ``revert=False`` al
+        REGENERAR un QR desde pay_mp_qr(), porque ahí _mp_qr_start() ya
+        recalculó el descuento y el importe del QR depende de él.
 
         El presupuesto queda sin factura y se puede cobrar por otro medio. Un
         IPN tardío sobre una transacción cancelada no factura (fail closed).
@@ -1320,7 +1330,12 @@ class SaleOrderQR(models.Model):
                 except Exception:
                     _logger.exception('MP QR: no se pudo cancelar la orden %s en Mercado Pago',
                                       tx.provider_reference or tx.reference)
-            tx.sudo()._set_canceled(reason or 'QR cancelado desde el pedido de venta')
+            if revert:
+                tx.sudo()._set_canceled(reason or 'QR cancelado desde el pedido de venta')
+            else:
+                # El hook de _set_canceled no debe revertir el pedido acá.
+                tx.sudo().with_context(mp_qr_no_cancel_revert=True)._set_canceled(
+                    reason or 'QR cancelado desde el pedido de venta')
             if post_message:
                 self.message_post(body=_(
                     'Se canceló el código QR de Mercado Pago pendiente (%s). El pedido '
@@ -1351,6 +1366,18 @@ class SaleOrderQR(models.Model):
             order.mp_qr_previous_type_id = False
         return True
 
+    def _mp_qr_revert_on_cancel(self):
+        """Vuelve al tipo original y RECALCULA el descuento con ese tipo.
+
+        Se dispara en TODAS las rutas de cancelación (botón del wizard, IPN de
+        vencimiento, cambio de medio de pago). El orden importa: primero el
+        tipo, porque la configuración de descuentos depende de él.
+        """
+        for order in self.filtered(lambda o: o.state in ('draft', 'sent')):
+            order._mp_qr_restore_previous_type()
+            order._mp_qr_recalc_discount()
+        return True
+
     def _mp_qr_discount_lines(self):
         """Líneas de descuento/redondeo generadas automáticamente.
 
@@ -1370,48 +1397,71 @@ class SaleOrderQR(models.Model):
             or (l.product_id.name or '').upper() == 'REDONDEO')
 
     def _mp_qr_discount_applied(self):
-        """True si el pedido tiene un QR (no pagado) que ya aplicó el descuento."""
+        """True si el pedido tiene un QR (incluso ya cancelado) cuyo descuento
+        pudo haberse aplicado.
+
+        NO se filtra por ``provider_id.code``: el proveedor se resuelve por
+        nombre y en algunas BD tiene otro código; eso hacía que el reset no
+        se ejecutara y apply_discount() se aplicara dos veces.
+        """
         self.ensure_one()
         tx = self.payment_provider.sudo()
-        return bool(tx and tx.provider_id.code == 'mercado_pago_qr'
-                    and tx.state in ('draft', 'pending', 'cancel', 'error'))
+        return bool(tx and tx.state in ('draft', 'pending', 'cancel', 'error'))
 
-    def _mp_qr_reset_discount(self):
-        """Quita las líneas de descuento/redondeo y deja los importes limpios.
+    def _mp_qr_clean_total(self):
+        """Total del pedido SIN las líneas de descuento/redondeo.
 
-        ``apply_discount()`` NO es idempotente: ejecutarlo sobre un pedido que
-        ya tiene esas líneas recalcula sobre un total ya descontado (descuento
-        duplicado o división por cero). Al cancelar el QR hay que dejar el
-        pedido limpio para que el nuevo medio de pago lo recalcule con SU tipo.
+        Permite calcular el importe del QR correctamente aunque queden códigos
+        aplicados por la versión anterior del código.
         """
         self.ensure_one()
-        if self.state not in ('draft', 'sent'):
-            return True
         lines = self._mp_qr_discount_lines()
-        if lines:
-            lines.unlink()
-        # Recalcular los importes desde el total SIN líneas de descuento,
-        # conservando el porcentaje (manual o del tipo de pedido).
-        self.invalidate_recordset(
-            ['order_line', 'amount_total', 'amount_untaxed', 'amount_tax'])
-        total = self.amount_total
-        percent = self.sale_discount_percent or 0.0
-        descuento = total * percent / 100.0
-        self.write({
-            'sale_discount': descuento,
-            'sale_with_discount': total - descuento,
-        })
-        return True
+        return sum(
+            line.price_total for line in self.order_line if line not in lines)
 
-    def _mp_qr_recalc_discount(self):
-        """Recalcula el descuento con las líneas de producto ACTUALES.
+    def _mp_qr_discount_amount(self, sale_type=None):
+        """Importe de descuento vigente para un tipo, SIN agregar códigos.
 
-        Acepta un recordset (el hook de ``write`` puede traer varios pedidos),
-        así que se itera en vez de exigir ``ensure_one``.
+        Replica la regla de ``sale_order_discount.compute_discount()`` pero es
+        de sólo lectura. En presupuesto NO deben existir líneas de descuento:
+        el importe a cobrar se calcula con este valor y los códigos se agregan
+        recién cuando el pedido se confirma.
+        """
+        self.ensure_one()
+        sale_type = sale_type or self.type_id
+        total = self._mp_qr_clean_total()
+        if not sale_type:
+            return 0.0
+        discounts = self.env['sale.order.discount'].sudo().search([
+            ('active', '=', True),
+            ('company_id', '=', self.company_id.id),
+            ('sale_order_type', '=', sale_type.id),
+        ], order='monto asc')
+        hoy = (datetime.now() - timedelta(hours=6)).weekday()
+        for d in discounts:
+            if d.dia and not any(day.day == hoy for day in d.dia):
+                continue
+            if total > d.monto:
+                return total * d.discount / 100.0
+        return 0.0
+
+    def _mp_qr_recalc_discount(self, sale_type=None):
+        """Deja el presupuesto SIN códigos de descuento y recalcula los importes
+        con el tipo indicado. NO aplica las líneas: eso es sólo al facturar.
+
+        Acepta un recordset (el hook de ``write`` puede traer varios pedidos).
         """
         for order in self.filtered(lambda o: o.state in ('draft', 'sent')):
-            order._mp_qr_reset_discount()
-            order.apply_discount()
+            lines = order._mp_qr_discount_lines()
+            if lines:
+                lines.unlink()
+            order.invalidate_recordset(
+                ['order_line', 'amount_total', 'amount_untaxed', 'amount_tax'])
+            descuento = order._mp_qr_discount_amount(sale_type or order.type_id)
+            order.write({
+                'sale_discount': descuento,
+                'sale_with_discount': order.amount_total - descuento,
+            })
         return True
 
     def _mp_qr_start(self, caja, efectivo_amount=0):
@@ -1425,8 +1475,10 @@ class SaleOrderQR(models.Model):
         # refrescamos su estado en Mercado Pago (por si el IPN no llegó) y
         # reabrimos el mismo QR. Así se evita un segundo cobro. Si el total del
         # pedido cambió (se agregaron productos), el QR viejo ya no sirve.
+        mp_qr_type = self._mp_qr_sale_type()
+        descuento_qr = self._mp_qr_discount_amount(mp_qr_type)
+        expected_amount = self._mp_qr_clean_total() - descuento_qr - (efectivo_amount or 0)
         pending = self._mp_qr_pending_transactions()
-        expected_amount = self.amount_total - (efectivo_amount or 0)
         if pending and float_compare(
                 pending[:1].amount, expected_amount,
                 precision_rounding=self.currency_id.rounding or 0.01) == 0:
@@ -1440,20 +1492,30 @@ class SaleOrderQR(models.Model):
             # Venció o se canceló: seguimos abajo y generamos uno nuevo.
         elif pending:
             self._mp_qr_cancel_pending('El total del pedido cambió; se regenera el QR')
-        # Recordamos el tipo actual para poder restaurarlo si el QR se cancela
-        # o el pago no se acredita. NO lo cambiamos a 'MP QR' todavía.
+        # Recordamos el tipo previo y CAMBIAMOS a 'MP QR': el descuento se debe
+        # calcular con la configuración de ese medio. Si el QR se cancela,
+        # _mp_qr_revert_on_cancel() vuelve al tipo original y recalcula.
         self.mp_qr_previous_type_id = self.type_id.id
-        # El descuento se RECALCULA (no se re-aplica) ANTES de crear la
-        # transacción: el importe del QR tiene que coincidir con el total
-        # definitivo de las líneas actuales, sin arrastrar descuentos viejos.
-        self._mp_qr_recalc_discount()
+        if mp_qr_type and self.type_id != mp_qr_type:
+            name_original = self.name
+            self.type_id = mp_qr_type.id
+            # sale_order_type.write() puede regenerar el número si el tipo usa
+            # otra secuencia; la referencia del QR se crea con el nombre viejo.
+            if self.name != name_original:
+                self.name = name_original
+        self.is_admin = False
+        # Presupuesto SIN códigos de descuento: sólo importes calculados. Los
+        # códigos se agregan recién en _mp_qr_confirm_and_invoice().
+        self._mp_qr_recalc_discount(mp_qr_type)
         if not self.caja_id:
             self.caja_id = caja.id
         # Guardamos la parte en efectivo para registrar su cobro al acreditarse
         # el QR (antes no existe factura contra la cual imputarla).
         self.efectivo = efectivo_amount
-        self.is_admin = False
-        tx = self.pay_mp_qr(self.efectivo or 0)
+        # Importe a cobrar: total limpio MENOS el descuento vigente de MP QR
+        # MENOS la parte en efectivo. No hay líneas de descuento que lo alteren.
+        charge = self.amount_total - self.sale_discount - (efectivo_amount or 0)
+        tx = self.pay_mp_qr(self.efectivo or 0, amount=charge)
         if not tx:
             # Sin proveedor configurado no se genera el QR, pero el pedido
             # SIGUE en presupuesto y sin factura: se puede cobrar por otro medio.
@@ -1494,19 +1556,18 @@ class SaleOrderQR(models.Model):
             raise UserError(_("El pedido %s está cancelado; no se puede facturar.") % self.name)
         invoices = self._mp_qr_invoices()
         if self.state in ('draft', 'sent'):
-            # RECIÉN ACÁ, con el pago ya verificado, se fija el tipo 'MP QR':
-            # es el que aporta el diario de facturación y la automatización al
-            # confirmar. Si el QR se cancela o el pago es inválido, este método
-            # no se ejecuta y el pedido conserva su tipo anterior.
+            # El tipo 'MP QR' ya se fijó al GENERAR el QR (para calcular su
+            # descuento). Lo aseguramos por si el pago viene de un flujo viejo.
             mp_qr_type = self._mp_qr_sale_type()
-            if mp_qr_type:
-                # sale_order_type.write() puede regenerar el número del pedido
-                # si el tipo usa otra secuencia. La referencia del QR ya se creó
-                # con el nombre original, así que lo preservamos.
+            if mp_qr_type and self.type_id != mp_qr_type:
                 name_original = self.name
                 self.type_id = mp_qr_type.id
                 if self.name != name_original:
                     self.name = name_original
+            # RECIÉN ACÁ se agregan los códigos de descuento al pedido. El QR
+            # ya se cobró por el total CON descuento (sin líneas), así que la
+            # factura debe llevar ese mismo descuento para que cuadre.
+            self.apply_discount()
             # NO se limpia mp_qr_previous_type_id todavía: si action_confirm()
             # falla, el hook debe poder restaurar el tipo anterior.
             # 'sale_order_type_automation' crea y publica la factura al confirmar.
@@ -1540,7 +1601,7 @@ class SaleOrderQR(models.Model):
             order.message_post(body=_('Mercado Pago QR: %s') % message)
         return True
 
-    def prepare_payment_mp_qr(self,efectivo=0):
+    def prepare_payment_mp_qr(self,efectivo=0, amount=None):
         self.ensure_one()
         provider = self._mp_qr_provider()
         if not provider:
@@ -1548,7 +1609,8 @@ class SaleOrderQR(models.Model):
                             'configurado para %s.', self.company_id.name)
             return False
         _logger.info('PROVIDER %s' % provider)
-        amount = self.amount_total - (efectivo or 0)
+        if amount is None:
+            amount = self.amount_total - (efectivo or 0)
         if amount <= 0:
             raise UserError(_('El importe del QR debe ser mayor que cero. Revise el '
                               'monto en efectivo del pago múltiple.'))

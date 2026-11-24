@@ -21,6 +21,35 @@ _logger = logging.getLogger(__name__)
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
+    def _mp_qr_linked_orders(self):
+        """Pedidos que apuntan DIRECTAMENTE a esta transacción.
+
+        A diferencia de ``_mp_qr_orders`` no usa el fallback por nombre: al
+        cancelar un QR viejo no queremos revertir un pedido que ya tiene un QR
+        nuevo vigente.
+        """
+        self.ensure_one()
+        SaleOrder = self.env['sale.order'].sudo()
+        if 'payment_provider' not in SaleOrder._fields:
+            return SaleOrder.browse()
+        return SaleOrder.search([('payment_provider', '=', self.id)])
+
+    def _set_canceled(self, state_message=None):
+        """Al cancelar un QR, devolver el presupuesto a su estado previo.
+
+        Cubre TODAS las rutas: botón 'Cancel order' del wizard, IPN de
+        vencimiento/cancelación de Mercado Pago y cambio de medio de pago.
+        El flag de contexto evita revertir durante la regeneración del QR.
+        """
+        res = super()._set_canceled(state_message)
+        if self.env.context.get('mp_qr_no_cancel_revert'):
+            return res
+        for tx in res:
+            orders = tx._mp_qr_linked_orders()
+            if orders:
+                orders._mp_qr_revert_on_cancel()
+        return res
+
     def _mp_qr_orders(self):
         """Pedido(s) de venta asociados a esta transacción QR."""
         self.ensure_one()
@@ -63,25 +92,27 @@ class PaymentTransaction(models.Model):
                 self.invoice_ids = [(6, 0, invoices.ids)]
             return True
         if self.state in ('cancel', 'error'):
-            orders._mp_qr_restore_previous_type()
+            # Sólo revertir pedidos que aún apuntan a ESTA transacción: si ya
+            # generaron un QR nuevo, ese QR vigente no se debe tocar.
+            self._mp_qr_linked_orders()._mp_qr_revert_on_cancel()
             orders._mp_qr_payment_warning(_(
                 'Mercado Pago informó un pago para el QR %s, pero la transacción ya '
                 'estaba cancelada o vencida. No se facturó; verifique el cobro en '
                 'Mercado Pago antes de cobrar por otro medio.') % self.reference)
             return False
         if not self._mp_qr_verify_payment(order_data, expected_amount, orders):
-            # Pago inválido / no verificable: el tipo NUNCA se cambió, pero
-            # restauramos explícitamente por si un flujo anterior lo fijó.
-            orders._mp_qr_restore_previous_type()
+            # Pago inválido / no verificable: volver al tipo original y
+            # recalcular el descuento con ese tipo, sin dejar códigos aplicados.
+            orders._mp_qr_revert_on_cancel()
             return False
         try:
             for order in orders:
                 order._mp_qr_confirm_and_invoice(self)
         except Exception:
             _logger.exception('MP QR %s: error al confirmar/facturar el pedido', self.reference)
-            # Si action_confirm() alcanzó a fijar el tipo antes de fallar, lo
-            # devolvemos al anterior: el pago NO quedó registrado.
-            orders._mp_qr_restore_previous_type()
+            # El pago NO quedó registrado: volver al tipo original y dejar el
+            # presupuesto sin códigos de descuento aplicados.
+            orders._mp_qr_revert_on_cancel()
             orders._mp_qr_payment_warning(_(
                 'el pago fue verificado pero no se pudo confirmar el pedido ni '
                 'emitir la factura. Revise el log; la transacción NO se marcó '

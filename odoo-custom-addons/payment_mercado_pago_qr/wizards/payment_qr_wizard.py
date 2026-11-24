@@ -1,6 +1,10 @@
+import logging
+
 from werkzeug import urls
 
 from odoo import _, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class PaymentQrWizard(models.TransientModel):
@@ -53,7 +57,14 @@ class PaymentQrWizard(models.TransientModel):
         return self.tx_id.sudo().action_mp_open_qr()
 
     def action_cancel_order(self):
-        self.tx_id.sudo().mp_payment_order_cancel()
+        # Aunque falle la cancelación remota en Mercado Pago, la transacción
+        # local DEBE cancelarse: es lo que dispara la reversión del pedido
+        # (tipo de pedido y descuento) en scan_qr.
+        try:
+            self.tx_id.sudo().mp_payment_order_cancel()
+        except Exception:
+            _logger.exception("MP QR: no se pudo cancelar la orden %s en Mercado Pago",
+                              self.tx_id.provider_reference or self.tx_id.reference)
         self.tx_id.sudo()._set_canceled(f"Canceled by user {self.env.user.name}")
         return {
             "type": "ir.actions.client",

@@ -50,7 +50,15 @@ class SaleOrder(models.Model):
         descuentos = {}
         for order in self:
             if order.state in ['draft','sent'] and not order.is_admin: # and order.efectivo == 0:
-                total = order.amount_total
+                # El total se calcula SIN las propias líneas de descuento: si
+                # no, el descuento se recalcula sobre un importe ya descontado
+                # y se va achicando en cada recomputo.
+                discount_products = self.env["sale.order.discount"].sudo().search(
+                    [("active", "=", True),
+                     ('company_id', '=', order.company_id.id)]).mapped('product_id')
+                total = sum(
+                    line.price_total for line in order.order_line
+                    if line.product_id not in discount_products)
                 # Buscamos los descuentos activos
                # discounts = self.env["sale.order.discount"].search([("active", "=", True)],order="monto asc")    
                 discounts=self.env["sale.order.discount"].search([("active", "=", True),('company_id','=',self.company_id.id)],order="monto asc")
@@ -87,16 +95,14 @@ class SaleOrder(models.Model):
                                     activo = True
                     if activo:
                         _logger.info('DESCUENTO %s %s ' % (discount.sale_order_type.name,discount.dia) )
-                        for line in order.order_line:
-                            if line.product_id.id == discount.product_id.id:
-                                line.write({"price_unit":0})
+                        # NO se escriben las líneas de descuento acá: las crea
+                        # apply_discount() con el reparto por alícuota de IVA.
+                        # Poner -sale_discount en CADA línea duplicaba el
+                        # descuento cuando había más de una alícuota.
                         if total > discount.monto:
                             order.sale_discount = total * discount.discount / 100
                             order.sale_with_discount = total - order.sale_discount
                             order.sale_discount_percent = discount.discount
-                            for line in order.order_line:
-                                if line.product_id.id == discount.product_id.id:
-                                    line.write({"price_unit":-order.sale_discount})
                             _logger.info('CALCULAR DESCUENTO %s ' %  total)
                 _logger.info('CALCULAR DESCUENTO %s ' %  descuentos.values())
                 order.write({'sale_discounts':list(descuentos.values())})
