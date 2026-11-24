@@ -199,9 +199,16 @@ class SaleOrderQR(models.Model):
         label = context.get('label')
         if efectivo:
             efectivo = float(efectivo)
-        # Monto en efectivo de un pago múltiple: viene del popup ('text') o del
+        # Monto en efectivo de un pago múltiple: viene del popup ('monto') o del
         # campo 'efectivo' cargado directamente en el formulario del pedido.
         efectivo_amount = float(efectivo or 0) or (self.efectivo or 0)
+        if efectivo_amount > 0 and not self.efectivo:
+            # El monto vino del popup de efectivo: persistirlo en el pedido para
+            # que el split del pago múltiple (que decide con self.efectivo) y el
+            # cobro del QR lo vean igual que si lo hubieran cargado en pantalla.
+            # Sin esto el split cobraba el TOTAL con el diario del otro método
+            # y la parte en efectivo se perdía.
+            self.efectivo = efectivo_amount
         payment_type = selected_payment_type
         if efectivo and efectivo > 0:
             # El popup de efectivo antes pisaba el medio elegido con 'Multiple',
@@ -212,7 +219,14 @@ class SaleOrderQR(models.Model):
             action = popup.show_mp(self, 'Selccion el metodo a utilizar', 'action_confirm_type')
             return action
 
-        if payment_type == 'Multiple' and not efectivo:
+        # El popup de efectivo SÓLO se abre cuando NO hay efectivo cargado en
+        # ningún lado (ni popup ni formulario): el comportamiento original era
+        # cargar el efectivo en el formulario y confirmar con el otro medio,
+        # y el sistema separaba solo la parte del efectivo y la del otro medio.
+        # Antes se miraba sólo el parámetro `efectivo` (que llega únicamente
+        # desde el popup) y volvía a pedir el monto aunque ya estuviera en
+        # pantalla.
+        if payment_type == 'Multiple' and not efectivo_amount:
             popup = self.env['scan_qr.popup.confirmation']
             action = popup.show_efectivo(self, 'Ingreso el monto en efectivo y seleccione el otro metodo de pago <h3>Total: %s</h3>' % self.amount_total, 'action_confirm_type')
             return action
