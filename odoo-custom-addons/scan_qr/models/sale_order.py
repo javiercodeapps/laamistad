@@ -1498,7 +1498,9 @@ class SaleOrderQR(models.Model):
             except Exception:
                 _logger.exception(
                     'MP QR: no se pudo recalcular el descuento en el onchange')
-        return True
+        # Un @api.onchange NO debe devolver nada (o un dict con value/warning/
+        # domain). Devolver True hace que _onchange_eval() llame a
+        # res.get('value') sobre un bool -> AttributeError.
 
     def _mp_qr_start(self, caja, efectivo_amount=0):
         """Genera el código QR SIN confirmar ni facturar el pedido.
