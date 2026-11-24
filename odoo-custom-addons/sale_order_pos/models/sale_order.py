@@ -78,8 +78,8 @@ class SaleOrderQR(models.Model):
 
     def modifico(self):
         # Verifico si el pedido esta en sale y  reviso invoice status y la caja no esta abierta, si esta en sale o facturado no se puede modificar
-        if self.caja_id and self.caja_id.state != 'opened':
-            raise UserError('La caja asociada al pedido no esta abierta, no se puede modificar')
+       #if self.caja_id and self.caja_id.state != 'opened':
+       #    raise UserError('La caja asociada al pedido no esta abierta, no se puede modificar')
         #if self.state == 'sale' or self.invoice_status in ['invoiced']:
             #raise UserError('El pedido ya fue enviado o facturado, no se puede modificar')
         if self.is_admin == True:
