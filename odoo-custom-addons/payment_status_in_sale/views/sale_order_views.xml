@@ -9,6 +9,11 @@
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='payment_term_id']" position="after">
+                <!-- Debe estar en la vista: Odoo 16 valida que todo campo
+                     usado en attrs/modifiers esté declarado como <field>.
+                     Otras vistas heredadas lo usan en attrs donde el campo
+                     llega después en el orden de carga del grafo. -->
+                <field name="is_admin" invisible="1"/>
                 <field name="payment_status" invisible="1"/>
                 <field name="invoice_state" invisible="1"/>
                 <field name="payment_details" widget="payment"

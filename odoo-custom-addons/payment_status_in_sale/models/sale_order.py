@@ -30,6 +30,12 @@ class SaleOrder(models.Model):
     _inherit = "sale.order"
     _description = 'Sale order'
 
+    # Se declara acá (módulo temprano en el grafo) para que exista cuando se
+    # validan las vistas que usan is_admin en attrs. scan_qr y sale_order_pos
+    # lo redefinen después y el último gana, así que el comportamiento final
+    # (campo computado por check_group) no cambia.
+    is_admin = fields.Boolean(default=False, store=True, tracking=True)
+
     payment_status = fields.Char(string="Payment Status",
                                  compute="_compute_payment_status",
                                  help="Field to check the payment status of the"
