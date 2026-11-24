@@ -21,21 +21,24 @@ class SaleOrderQR(models.Model):
                     raise UserError(
                         "No se puede cancelar el pedido %s porque la sesión de caja "
                         "asociada (%s) no está en estado 'Abierta'. "
-                      % (order.name, record.caja_id.name))
-            if self.state == 'draft':
-                self.state = 'cancel'
-                return True
+                      % (record.name, record.caja_id.name))
+            # Dentro del loop se opera sobre `record`, no sobre `self` (que
+            # puede traer varios pedidos), y se usa `continue` en vez de
+            # `return` para procesarlos todos.
+            if record.state == 'draft':
+                record.state = 'cancel'
+                continue
             if not record.is_admin:
                 raise UserError('El pedido solo puede ser cancelado por el encargado')
             # Busco facturas
-            _logger.info('Rever %s ' % self.invoice_ids)
-            for invoice in self.invoice_ids:
+            _logger.info('Rever %s ' % record.invoice_ids)
+            for invoice in record.invoice_ids:
                 for payment in invoice.payment_group_ids:
                     payment.action_draft()
                     payment.cancel()
-            if self.invoice_ids:
-                self.create_reverse(self.invoice_ids)
-            return self.write({'state': 'cancel'})
+            if record.invoice_ids:
+                record.create_reverse(record.invoice_ids)
+            record.write({'state': 'cancel'})
         return True
 
     def create_reverse(self,move):
