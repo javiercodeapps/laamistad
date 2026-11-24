@@ -66,7 +66,7 @@
                                      <t t-set="total_items" t-value="total_items + 1"/>
                                 </t>
                                 <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code">
-                                    <t t-set="total_descuento" t-value="total_descuento + line.price_subtotal"/>
+                                    <t t-set="total_descuento" t-value="total_descuento + line.price_total"/>
                                 </t>
                                 <t t-else="">
                                 <tr>
@@ -97,7 +97,9 @@
                             </th>
                         </tr>
                         <tr t-if="total_descuento &lt; 0">
-                            <th class="text-end">Descuentos</th>
+                            <th class="text-end">
+                                <span t-esc="nombre_descuento"/>
+                            </th>                
                             <th class="text-end">
                                 <span t-esc="total_descuento" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}" />
                             </th>

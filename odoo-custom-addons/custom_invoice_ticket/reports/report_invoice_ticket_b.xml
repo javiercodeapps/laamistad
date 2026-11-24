@@ -63,7 +63,7 @@
                                      <t t-set="total_items" t-value="total_items + 1"/>
                                 </t>
                                 <t t-if="line.product_id.default_code and 'DESCU' in line.product_id.default_code">
-                                    <t t-set="total_descuento" t-value="total_descuento + line.price_subtotal"/>
+                                    <t t-set="total_descuento" t-value="total_descuento + line.price_total"/>
                                 </t>
                                 <t t-else="">
                                 <tr>

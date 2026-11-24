@@ -115,6 +115,11 @@ class PaymentMercadopagoPoint(models.Model):
                          "failure": f"{base_url}/mercadopago_point_payment/failure",
                          "pending": f"{base_url}/mercadopago_point_payment/pending",
                 },
+                # Mercado Pago avisa el pago por acá aunque el cliente no vuelva
+                # al comercio. Sin esto el cobro sólo se registraba si el
+                # navegador volvía a la back_url o alguien apretaba "Verificar
+                # pago" (por eso "no llegaba" el control del pago).
+                "notification_url": f"{base_url}/mercadopago_point_payment/ipn",
                 "expires": True,  # importante para que se respete la fecha
                 "date_of_expiration": fecha_exp,
                 "auto_return": "approved",

@@ -65,6 +65,11 @@
 	            <button name="modifico" type="object" string="Modifico" class="oe_highlight -primary" attrs="{'invisible': [('state', 'in', ['cancel','draft'])]}"/>
 	            <button name="cancelar" type="object" string="Cancelar" class="oe_highlight -primary" attrs="{'invisible': [('state', 'in', ['draft','done'])]}"/>
 		    <button name="generar" type="object" string="Generar" class="oe_highlight" attrs="{'invisible': [('state', '=', 'done')]}"/>
+		    <!-- Impresión del ticket/recibo del pago generado. El método
+		         imprimir() sigue en el modelo; lo que faltaba era el botón. -->
+		    <button name="imprimir" type="object" string="Imprimir Ticket"
+		            class="oe_highlight"
+		            attrs="{'invisible': ['|', ('state', '!=', 'done'), '&amp;', ('payment_group', '=', False), ('payment', '=', False)]}"/>
 		    <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
 		</header>
 		<sheet>

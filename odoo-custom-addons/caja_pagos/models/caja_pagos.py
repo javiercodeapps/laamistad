@@ -82,14 +82,15 @@ class CajaPagos(models.Model):
         return action
 
     def imprimir(self):
+        """Imprime el ticket/recibo del pago generado."""
+        self.ensure_one()
         if self.payment_group:
-           # return self.env.ref('account_payment_group.action_report_payment_group').report_action(self.payment_group)
+            # return self.env.ref('account_payment_group.action_report_payment_group').report_action(self.payment_group)
             return self.env.ref('custom_account_payment_report.action_report_payment_group_custom').report_action(self.payment_group)
-
-
         if self.payment:
-          # return self.env.ref('account.action_report_payment_receipt').report_action(self.payment)
+            # return self.env.ref('account.action_report_payment_receipt').report_action(self.payment)
             return self.env.ref('custom_account_payment_report.action_report_payment_custom').report_action(self.payment)
+        raise UserError('No hay un pago generado para imprimir el ticket.')
 
 
     def _default_cashbox_session(self):
