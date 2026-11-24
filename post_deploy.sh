@@ -1,7 +1,7 @@
 # 1. Delete the conflicting pyOpenSSL (note the path in your traceback is /usr/local/lib/python3.9/dist-packages/)
 rm -rf /usr/local/lib/python3.9/dist-packages/OpenSSL
 rm -rf /usr/local/lib/python3.9/dist-packages/pyOpenSSL-*.dist-info
-
+pip install -r /mnt/extra-addons/laamistad/requirimients.bkp2
 python3 -m pip install pyOpenSSL==21.0.0 cryptography==3.4.8
 
 #pip install git+https://github.com/filoquin/pyafipws.git@py3k
