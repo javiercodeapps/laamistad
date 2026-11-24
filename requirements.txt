@@ -4,7 +4,6 @@ chardet==4.0.0
 email_validator
 endesive==2.18.5
 genshi==0.7.7
-PyAfipWs @ git+https://github.com/reingart/pyafipws@545ddcee9d1c59772ba8d418c28d8a6407a686e1
 openupgradelib
 httplib2==0.20.4
 httpx
