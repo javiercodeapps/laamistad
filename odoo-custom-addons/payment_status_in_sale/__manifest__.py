@@ -32,7 +32,11 @@
     'company': 'Cybrosys Techno Solutions',
     'maintainer': 'Cybrosys Techno Solutions',
     'website': 'https://www.cybrosys.com',
-    'depends': ['sale_management', 'account'],
+    # sale_order_type (y por transitiva sale_stock) debe cargarse ANTES: las
+    # vistas combinadas de este módulo usan type_id y effective_date, y Odoo
+    # valida que existan en sale.order al parsear el XML. Sin esta dependencia
+    # el upgrade falla con "El campo type_id no existe en el modelo sale.order".
+    'depends': ['sale_management', 'account', 'sale_order_type'],
     'data': ['views/sale_order_views.xml'],
     'images': ['static/description/banner.png'],
     'license': 'AGPL-3',
