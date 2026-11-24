@@ -48,8 +48,14 @@ class SaleOrder(models.Model):
     @api.depends('order_line.price_subtotal', 'order_line.price_tax', 'order_line.price_total')
     def compute_discount(self):
         descuentos = {}
+        # Flag de scan_qr: el recálculo se disparó por una MODIFICACIÓN DE
+        # LÍNEAS. En ese caso debe ejecutarse AUNQUE is_admin sea True (el
+        # encargado necesita que el descuento siga al total). En el resto de
+        # los casos (confirmar, generar QR, revertir) se mantiene la regla
+        # original: con is_admin no se recalcula.
+        from_line_change = self.env.context.get('mp_qr_line_change')
         for order in self:
-            if order.state in ['draft','sent'] and not order.is_admin: # and order.efectivo == 0:
+            if order.state in ['draft','sent'] and (not order.is_admin or from_line_change):
                 # El total se calcula SIN las propias líneas de descuento: si
                 # no, el descuento se recalcula sobre un importe ya descontado
                 # y se va achicando en cada recomputo.
@@ -59,6 +65,14 @@ class SaleOrder(models.Model):
                 total = sum(
                     line.price_total for line in order.order_line
                     if line.product_id not in discount_products)
+                if order.is_admin and from_line_change:
+                    # Admin: NO se vuelve a aplicar la regla de negocio al
+                    # confirmar; acá sólo se reescala el porcentaje que él
+                    # fijó a mano contra el nuevo total de las líneas.
+                    porcentaje = order.sale_discount_percent or 0.0
+                    order.sale_discount = total * porcentaje / 100
+                    order.sale_with_discount = total - order.sale_discount
+                    continue
                 # Buscamos los descuentos activos
                # discounts = self.env["sale.order.discount"].search([("active", "=", True)],order="monto asc")    
                 discounts=self.env["sale.order.discount"].search([("active", "=", True),('company_id','=',self.company_id.id)],order="monto asc")

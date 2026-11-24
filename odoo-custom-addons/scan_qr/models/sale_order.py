@@ -41,31 +41,6 @@ class SaleOrderQR(models.Model):
     mp_qr_previous_type_id = fields.Many2one(
         'sale.order.type', string='Tipo previo al QR MP', copy=False)
 
-    def write(self, vals):
-        res = super().write(vals)
-        # Mientras el QR está vigente, cualquier cambio en las líneas de
-        # producto recalcula el importe del descuento (SIN agregar códigos al
-        # presupuesto). Sólo afecta a pedidos con un QR generado y se protege
-        # con un flag de contexto para no reentrar.
-        if 'order_line' in vals and not self.env.context.get('mp_qr_no_discount_recalc'):
-            # Sólo mientras el QR está VIGENTE. Tras cancelar no se debe volver
-            # a aplicar el descuento: el pedido ya fue revertido.
-            orders = self.filtered(
-                lambda o: o.state in ('draft', 'sent')
-                and o.payment_provider.sudo().state in ('draft', 'pending'))
-            if orders:
-                try:
-                    orders.with_context(
-                        mp_qr_no_discount_recalc=True)._mp_qr_recalc_discount()
-                except Exception:
-                    # Un problema al recalcular NO puede impedir guardar las
-                    # líneas: se registra y el descuento se recalcula al
-                    # generar/refrescar el QR de todas formas.
-                    _logger.exception('MP QR: no se pudo recalcular el descuento '
-                                      'tras cambiar las líneas del pedido %s',
-                                      ', '.join(orders.mapped('name')))
-        return res
-
     ## Parses QR data and creates a Sale Order
     @api.model
     def create_sale_order_from_qr(self, qr_code, payment_type):
@@ -1439,29 +1414,48 @@ class SaleOrderQR(models.Model):
         ], order='monto asc')
         hoy = (datetime.now() - timedelta(hours=6)).weekday()
         for d in discounts:
+            porcentaje = d.discount or 0.0
+            if porcentaje <= 0 or porcentaje > 100:
+                # Registro mal cargado (p.ej. 180.0 en vez de 1.8/18): un
+                # descuento mayor al 100% deja el importe del QR en negativo.
+                _logger.warning(
+                    'MP QR: descuento inválido %s (id=%s) tipo=%s monto=%s '
+                    'porcentaje=%s; se ignora.',
+                    d.name, d.id, sale_type.name, d.monto, porcentaje)
+                continue
             if d.dia and not any(day.day == hoy for day in d.dia):
                 continue
             if total > d.monto:
-                return total * d.discount / 100.0
+                return total * porcentaje / 100.0
         return 0.0
 
     def _mp_qr_recalc_discount(self, sale_type=None):
         """Deja el presupuesto SIN códigos de descuento y recalcula los importes
         con el tipo indicado. NO aplica las líneas: eso es sólo al facturar.
 
-        Acepta un recordset (el hook de ``write`` puede traer varios pedidos).
+        Acepta un recordset. Se ejecuta bajo ``mp_qr_no_discount_recalc`` para
+        que sus propios writes/unlinks no vuelvan a disparar el hook de línea.
         """
+        from_line_change = self.env.context.get('mp_qr_line_change')
+        self = self.with_context(mp_qr_no_discount_recalc=True)
         for order in self.filtered(lambda o: o.state in ('draft', 'sent')):
             lines = order._mp_qr_discount_lines()
             if lines:
                 lines.unlink()
             order.invalidate_recordset(
                 ['order_line', 'amount_total', 'amount_untaxed', 'amount_tax'])
-            descuento = order._mp_qr_discount_amount(sale_type or order.type_id)
-            order.write({
-                'sale_discount': descuento,
-                'sale_with_discount': order.amount_total - descuento,
-            })
+            if from_line_change:
+                # Disparado por un cambio de líneas: delega en
+                # compute_discount(), que con el flag se ejecuta aunque sea
+                # is_admin (y en ese caso sólo reescala el % manual).
+                # Para el resto de los casos NO se pasa este flag.
+                order.compute_discount()
+            else:
+                descuento = order._mp_qr_discount_amount(sale_type or order.type_id)
+                order.write({
+                    'sale_discount': descuento,
+                    'sale_with_discount': order.amount_total - descuento,
+                })
         return True
 
     def _mp_qr_start(self, caja, efectivo_amount=0):

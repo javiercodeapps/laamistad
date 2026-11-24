@@ -1,5 +1,6 @@
 # models/__init__.py
 from . import sale_order
+from . import sale_order_line
 from . import account_move
 from . import popup_confirmation
 from . import mp_link_wizard
