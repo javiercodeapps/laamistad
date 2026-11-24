@@ -1456,6 +1456,48 @@ class SaleOrderQR(models.Model):
                     'sale_discount': descuento,
                     'sale_with_discount': order.amount_total - descuento,
                 })
+            # total_calculado (sale_order_pos) se setea en un onchange propio;
+            # lo dejamos al día también cuando el recálculo viene del servidor.
+            if 'total_calculado' in order._fields:
+                order.total_calculado = (
+                    order.sale_with_discount if order.sale_with_discount > 0
+                    else order.amount_total)
+        return True
+
+    @api.onchange('order_line')
+    def _mp_qr_onchange_lines_recalc_discount(self):
+        """Refleja el descuento EN LA VISTA al modificar líneas, sin grabar.
+
+        Cuando is_admin=True las líneas son editables pero compute_discount()
+        no corre (condición is_admin que se mantiene para el resto de los
+        casos). El hook de sale.order.line.write() sólo actúa al guardar,
+        así que acá se calcula en memoria para que sale_discount,
+        sale_with_discount y total_calculado se vean actualizados en el
+        onchange y no muestren el valor anterior.
+        """
+        for order in self:
+            if order.state not in ('draft', 'sent'):
+                continue
+            try:
+                total = order._mp_qr_clean_total() or order.amount_total
+                if order.is_admin:
+                    # Admin: sólo reescalar el porcentaje que fijó a mano,
+                    # sin volver a aplicar la regla de negocio.
+                    descuento = total * (order.sale_discount_percent or 0.0) / 100.0
+                else:
+                    descuento = order._mp_qr_discount_amount(order.type_id)
+                order.sale_discount = descuento
+                order.sale_with_discount = total - descuento
+                # total_calculado lo calcula sale_order_pos en otro onchange,
+                # pero con is_admin puede quedarse con el valor viejo: lo
+                # dejamos explícito con el total recién calculado.
+                if 'total_calculado' in order._fields:
+                    order.total_calculado = (
+                        order.sale_with_discount if order.sale_with_discount > 0
+                        else order.amount_total)
+            except Exception:
+                _logger.exception(
+                    'MP QR: no se pudo recalcular el descuento en el onchange')
         return True
 
     def _mp_qr_start(self, caja, efectivo_amount=0):
