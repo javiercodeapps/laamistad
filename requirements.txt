@@ -26,6 +26,6 @@ requests
 responses==0.25.7
 xlrd
 mercadopago
-pyjwt==2.4.0
-authlib==1.2.0
-pysaml2==7.4.2
+pyjwt
+authlib
+pysaml2
