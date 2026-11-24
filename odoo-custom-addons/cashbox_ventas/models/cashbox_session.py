@@ -180,11 +180,29 @@ class CashBoxSale(models.Model):
                         else:
                             ctactereumen -= abs(line.amount)
             if not resumen:
-                # Si no hay resumen, busco las ventas de CTACTE pendientes de cobro a la fecha de apertura de la caja
-                ventas=self.env['sale.order'].search([('company_id','=',self.company_id.id),('state','!=','cancel'),('date_order','<',self.opening_date)])
-                for v in ventas:
-                    if 'CTACTE' in v.type_id.name:
-                        ctactereumen += v.amount_total
+                # Si no hay resumen, sumo las ventas CTACTE anteriores a la
+                # apertura de la caja. Antes se hacía un search() sin límite
+                # inferior de fecha y un loop leyendo v.type_id.name y
+                # v.amount_total de CADA pedido: con años de ventas eso cargaba
+                # todas las sale.order y sus líneas en la caché y terminaba en
+                # MemoryError dentro de insert_missing(). Ahora se filtra por
+                # tipo en el dominio y se suma en SQL con read_group (una sola
+                # consulta, sin traer registros a memoria).
+                tipos = self.env['sale.order.type'].sudo().search(
+                    [('name', 'ilike', 'CTACTE')])
+                domain = [
+                    ('company_id', '=', self.company_id.id),
+                    ('state', '!=', 'cancel'),
+                    ('date_order', '<', self.opening_date),
+                    ('type_id', 'in', tipos.ids),
+                ]
+                grouped = self.env['sale.order'].sudo().read_group(
+                    domain, ['amount_total:sum'], [])
+                if grouped:
+                    ctactereumen += grouped[0].get('amount_total') or 0.0
+                    _logger.info('CTACTE resumen: %s ventas, suma %s',
+                                 grouped[0].get('__count'),
+                                 grouped[0].get('amount_total'))
 
             self.env['account.cashbox.sale.line'].create({'type_id':'0-RESUMEN',
                                                           'count':0,
