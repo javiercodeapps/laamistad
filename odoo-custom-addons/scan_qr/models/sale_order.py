@@ -24,6 +24,20 @@ def _mp_link_reference_key(value):
     return frozenset(n for n in names if n)
 
 
+def _mp_link_reference_ids(value):
+    """IDs de BD de sale.order desde un external_reference ('123,456').
+
+    El link se identifica por la PK de las órdenes, que es única en toda la
+    base, y no por `name` (secuencia por compañía, repetida entre empresas).
+    """
+    ids = []
+    for part in str(value or '').split(','):
+        part = part.strip().strip('"\'').strip()
+        if part.isdigit():
+            ids.append(int(part))
+    return ids
+
+
 class SaleOrderQR(models.Model):
     _inherit = "sale.order"
 
@@ -423,15 +437,23 @@ class SaleOrderQR(models.Model):
         history = self._mp_link_last_history(orders)
         if history and history.name:
             return history.name
-        return ', '.join(orders.mapped('name'))[:256]
+        # Formato del link: IDs de BD de las órdenes separados por coma.
+        return ','.join(str(i) for i in orders.ids)
 
     def _mp_link_related_orders(self):
-        """Órdenes que comparten el último link (un link puede agrupar varias)."""
+        """Órdenes que comparten el último link (un link puede agrupar varias).
+
+        Se resuelven por ID de BD (único en toda la base), no por `name`, que
+        es una secuencia por compañía y se repite entre empresas.
+        """
         self.ensure_one()
         history = self._mp_link_last_history(self)
         if history and history.name:
-            names = [n.strip().strip('"\'') for n in history.name.split(',') if n.strip()]
-            orders = self.env['sale.order'].sudo().search([('name', 'in', names)])
+            ids = _mp_link_reference_ids(history.name)
+            orders = self.env['sale.order'].sudo().search([
+                ('id', 'in', ids),
+                ('company_id', '=', self.company_id.id),
+            ]) if ids else self.env['sale.order'].browse()
             if orders:
                 return orders
         return self
@@ -889,16 +911,24 @@ class SaleOrderQR(models.Model):
         data = data or {}
         external_reference = data.get('external_reference') or ''
         payment_id = data.get('payment_id') or data.get('collection_id')
-        # Se toleran comillas envolventes: a veces el valor llega como repr/JSON
-        # ('"S61473, S61047"') en lugar de 'S61473, S61047'
-        names = [n.strip().strip('"\'').strip() for n in external_reference.split(',')]
-        names = [n for n in names if n]
-        if not names:
-            _logger.warning('MP link sin external_reference: %s' % data)
+        # El external_reference son los IDs de BD de las órdenes (PK, únicos en
+        # toda la base), no los `name`: la secuencia de sale.order es por
+        # compañía y el mismo número existe en varias empresas. Se toleran
+        # comillas envolventes por si el valor llega como repr/JSON.
+        ids = _mp_link_reference_ids(external_reference)
+        if not ids:
+            _logger.warning('MP link sin external_reference válido: %s' % data)
             return False
-        orders = self.env['sale.order'].sudo().search([('name', 'in', names)])
+        orders = self.env['sale.order'].sudo().search([('id', 'in', ids)])
         if not orders:
             _logger.warning('MP link: no se encontraron órdenes para %s' % external_reference)
+            return False
+        # Un link siempre es de una sola compañía: si los IDs resolvieron
+        # registros de empresas distintas, no se factura nada.
+        if len(orders.mapped('company_id')) > 1:
+            orders._mp_link_payment_warning(
+                'el link %s mezcla órdenes de distintas compañías: no se facturó.'
+                % external_reference)
             return False
         # Verifico el pago contra la API de Mercado Pago (no confío en los
         # parámetros de la URL, que pueden ser falsificados). Si no se puede

@@ -89,8 +89,17 @@ class PaymentMercadopagoPoint(models.Model):
             # amount_total ya incluye los impuestos de todas las líneas
             "unit_price": sum(sale_orders.mapped('amount_total')),
         }]
-        # Referencia externa combinada (Mercado Pago limita el campo a 256 caracteres)
-        referencia = ', '.join(sale_orders.mapped('name'))[:256]
+        # external_reference con los IDs de BD de las órdenes (PK, únicos en
+        # toda la base). El `name` de sale.order es una secuencia POR COMPAÑÍA:
+        # el mismo número existe en varias empresas y, con sudo(), la búsqueda
+        # por name mezclaba pedidos ajenos en el importe del link.
+        # Los nombres se mandan en `description` sólo para que sea legible en MP.
+        referencia = ','.join(str(i) for i in sale_orders.ids)
+        if len(referencia) > 256:
+            raise UserError(_("Demasiadas órdenes para un solo link de pago: la "
+                              "referencia externa supera los 256 caracteres de "
+                              "Mercado Pago. Genere links más chicos."))
+        descripcion = ', '.join(sale_orders.mapped('name'))[:256]
         data = { "items": mercadopago_items,
                 "back_urls": {
                          "success": f"{base_url}/mercadopago_point_payment/success",
@@ -101,7 +110,7 @@ class PaymentMercadopagoPoint(models.Model):
                 "date_of_expiration": fecha_exp,
                 "auto_return": "approved",
                 "external_reference": referencia,
-                "description": referencia,
+                "description": descripcion,
             }
         _logger.info("data: %s", data)
         preference_response = sdk.preference().create(data)
