@@ -25,10 +25,21 @@ class MercadopagoPointPaymemnt(http.Controller):
         _logger.info('queue %s' % kw)
         processed = False
         try:
+            # La back_url de success lleva ?ref=<referencia> con NUESTRO formato
+            # (el mismo que history.name y el que usa "Verificar pago"). Se
+            # prefiere sobre el external_reference que reenvía MP, que a veces
+            # no llega o llega con otro formato y hacía que pay_mp_link()
+            # devolviera False mostrando "Estamos verificando su pago".
+            if kw.get('ref'):
+                kw['external_reference'] = kw['ref']
             # pay_mp_link valida el pago contra la API de Mercado Pago y
             # devuelve False si no se pudo verificar/registrar: la página de
             # éxito no debe afirmar que el pago se acreditó en ese caso.
             processed = request.env["sale.order"].sudo().pay_mp_link(kw)
+            _logger.info('MP link success: processed=%s payment_id=%s ref=%s',
+                         processed,
+                         kw.get('payment_id') or kw.get('collection_id'),
+                         kw.get('external_reference'))
         except Exception:
             # El pago puede estar aprobado en Mercado Pago aunque falle el
             # registro: no freno la página, el detalle queda en el log y en el

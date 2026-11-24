@@ -458,6 +458,37 @@ class SaleOrderQR(models.Model):
                 return orders
         return self
 
+    def _mp_link_orders_by_names(self, reference):
+        """Fallback para links generados con el formato VIEJO de referencia
+        (lista de `name`). Se acota a la compañía del historial del link para
+        NO repetir el cruce de pedidos homónimos entre empresas.
+
+        Sólo se usa cuando la referencia no trae IDs; los links nuevos van
+        siempre por _mp_link_reference_ids().
+        """
+        names = [n.strip().strip('"\'').strip()
+                 for n in str(reference or '').split(',')]
+        names = [n for n in names if n]
+        if not names:
+            return self.env['sale.order'].browse()
+        ref = str(reference or '').strip().strip('"\'').strip()
+        History = self.env['payment_mercadopago_point.mercadopago.history'].sudo()
+        history = History.search(
+            [('name', '=', ref)], order='date desc', limit=1) if ref else History.browse()
+        if history and history.sale_id:
+            company = history.sale_id.company_id
+        elif self and len(self.company_id) == 1:
+            company = self.company_id
+        else:
+            company = self.env['res.company'].browse()
+        domain = [('name', 'in', names)]
+        if company:
+            domain.append(('company_id', '=', company.id))
+        else:
+            _logger.warning('MP link: referencia antigua %s sin compañía conocida; '
+                            'se resuelve sin filtro.', ref)
+        return self.env['sale.order'].sudo().search(domain)
+
     def _mp_link_current_link_info(self, orders=None):
         """Datos del último link si sigue vigente (vencimiento futuro).
 
@@ -916,10 +947,13 @@ class SaleOrderQR(models.Model):
         # compañía y el mismo número existe en varias empresas. Se toleran
         # comillas envolventes por si el valor llega como repr/JSON.
         ids = _mp_link_reference_ids(external_reference)
-        if not ids:
-            _logger.warning('MP link sin external_reference válido: %s' % data)
-            return False
-        orders = self.env['sale.order'].sudo().search([('id', 'in', ids)])
+        if ids:
+            orders = self.env['sale.order'].sudo().search([('id', 'in', ids)])
+        else:
+            # Link generado antes del cambio de formato: la referencia traía
+            # `name` en vez de IDs. Se acepta para poder registrar pagos ya
+            # aprobados, pero acotando la búsqueda a la compañía del link.
+            orders = self._mp_link_orders_by_names(external_reference)
         if not orders:
             _logger.warning('MP link: no se encontraron órdenes para %s' % external_reference)
             return False

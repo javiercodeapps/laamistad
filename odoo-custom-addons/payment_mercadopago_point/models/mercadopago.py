@@ -10,6 +10,7 @@ import pytz
 
 import requests
 from requests.structures import CaseInsensitiveDict
+from urllib.parse import quote
 _logger = logging.getLogger(__name__)
 
 
@@ -100,9 +101,17 @@ class PaymentMercadopagoPoint(models.Model):
                               "referencia externa supera los 256 caracteres de "
                               "Mercado Pago. Genere links más chicos."))
         descripcion = ', '.join(sale_orders.mapped('name'))[:256]
+        # `ref` viaja en la URL de retorno con NUESTRO formato exacto (el mismo
+        # que queda en history.name y usa "Verificar pago"). No dependemos de
+        # que Mercado Pago reenvíe external_reference en el redirect: si no lo
+        # manda o lo manda con otro formato, pay_mp_link() no resuelve las
+        # órdenes y muestra "Estamos verificando su pago" aunque el cobro esté
+        # aprobado. Se usa un nombre de parámetro propio para no chocar con los
+        # que agrega MP.
+        ref_qs = quote(referencia, safe=',')
         data = { "items": mercadopago_items,
                 "back_urls": {
-                         "success": f"{base_url}/mercadopago_point_payment/success",
+                         "success": f"{base_url}/mercadopago_point_payment/success?ref={ref_qs}",
                          "failure": f"{base_url}/mercadopago_point_payment/failure",
                          "pending": f"{base_url}/mercadopago_point_payment/pending",
                 },
