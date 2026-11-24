@@ -129,15 +129,24 @@ class CashBoxSale(models.Model):
                                     if 'DESCUENTO' in line.product_id.name:
                                         _logger.info('DESCUENTO %s %s' % (so.order_id.name,line.price_total))
                                         # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                        # pay_name pudo cambiar a 'MP CTACTE' /
+                                        # 'Efectivo CTACTE': hay que inicializar
+                                        # las tres claves que se leen al crear
+                                        # las líneas del resumen.
                                         if pay_name not in totales:
-                                            totales[pay_name]=0
-                                        totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / so.order_id.amount_total)
+                                            totales[pay_name] = 0
+                                            cantidad[pay_name] = 0
+                                            ids[pay_name] = []
+                                        # account.payment no tiene amount_total.
+                                        ratio = (pay.amount / so.order_id.amount_total) \
+                                            if so.order_id.amount_total else 0.0
+                                        totales[pay_name] += (line.price_total * -1) * ratio
                                         k = '%s %s' % (pay_name,line.product_id.name)
                                         if k not in descuentos:
                                             descuentos[k] = 0
                                             descuentosc[k] = 0
-                                        descuentos[k] += line.price_total  * (pay.amount_total / so.order_id.amount_total)
-                                        descuentosc[k]+=1
+                                        descuentos[k] += line.price_total * ratio
+                                        descuentosc[k] += 1
                             else:
                                 if pay.journal_id.name not in cobros:
                                     cobros[pay.journal_id.name]=0
@@ -264,27 +273,41 @@ class CashBoxSale(models.Model):
                         totales[type_name]=0
                         cantidad[type_name]=0
                         ids[type_name]=[]
-                    # Si el tipo de venta es Varios, tenemos que revisar el detalle del pago, y separar los montos seugn el diario de pago
+                    # Si el tipo de venta es Varios, tenemos que revisar el detalle del pago, y separar los montos segun el diario de pago
                     if 'Varios' in type_name:
-                        for pay in v.payment_ids:
-                            if pay.state == 'posted':
-                                pay_name = pay.journal_id.name
-                                if 'Mercado Pago' in pay.journal_id.name:
-                                    pay_name = 'MP'
-                                totales[pay_name]+=pay.amount_total
-                                cantidad[pay_name]+=1
-                                ids[pay_name].append(v.id)
-                                for line in v.order_line:
-                                    if 'DESCUENTO' in line.product_id.name:
-                                        _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
-                                        # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
-                                        totales[pay_name]+=(line.price_total * -1) * (pay.amount_total / v.amount_total)
-                                        k = '%s %s' % (pay_name,line.product_id.name)
-                                        if k not in descuentos:
-                                            descuentos[k] = 0
-                                            descuentosc[k] = 0
-                                        descuentos[k] += line.price_total  * (pay.amount_total / v.amount_total)
-                                        descuentosc[k]+=1
+                        # sale.order NO tiene payment_ids. Los pagos que
+                        # cancelaron sus facturas se obtienen por los grupos de
+                        # pago (account_payment_group), igual que en
+                        # refacturar_pedido() de scan_qr.
+                        pagos = v.invoice_ids.mapped('payment_group_ids').mapped('payment_ids')
+                        for pay in pagos.filtered(lambda p: p.state == 'posted'):
+                            pay_name = pay.journal_id.name or 'Varios'
+                            if 'Mercado Pago' in pay_name:
+                                pay_name = 'MP'
+                            # Estas claves no existen en los dicts (sólo se
+                            # inicializó type_name) y se leen más abajo al
+                            # generar las líneas del resumen.
+                            if pay_name not in totales:
+                                totales[pay_name] = 0
+                                cantidad[pay_name] = 0
+                                ids[pay_name] = []
+                            totales[pay_name] += pay.amount
+                            cantidad[pay_name] += 1
+                            ids[pay_name].append(v.id)
+                            # account.payment no tiene amount_total: se usa
+                            # `amount`. Se protege la división por cero.
+                            ratio = (pay.amount / v.amount_total) if v.amount_total else 0.0
+                            for line in v.order_line:
+                                if 'DESCUENTO' in line.product_id.name:
+                                    _logger.info('DESCUENTO %s %s' % (v.name,line.price_total))
+                                    # Hago la proporcion del descuento segun el tipo de pago, y lo agrego al total de descuentos
+                                    totales[pay_name] += (line.price_total * -1) * ratio
+                                    k = '%s %s' % (pay_name,line.product_id.name)
+                                    if k not in descuentos:
+                                        descuentos[k] = 0
+                                        descuentosc[k] = 0
+                                    descuentos[k] += line.price_total * ratio
+                                    descuentosc[k] += 1
                     else:
                         totales[type_name]+=v.amount_total
                         cantidad[type_name]+=1
