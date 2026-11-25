@@ -54,14 +54,18 @@
         </field>
         <button name="action_cancel" position="attributes">
           <attribute name="attrs">{'invisible': ['|', ('state',
-            'not in', ['draft', 'sent','sale']),
-            ('is_admin','=',False), ('id', '=', False)]}</attribute>
+            'not in', ['draft', 'sent','sale']), '&amp;', ('state', '=',
+            'draft'), ('is_admin','=',False)]}</attribute>
           <attribute name="context">{'disable_cancel_warning':
             True}</attribute>
         </button>
         <xpath expr="//field[@name='order_line']" position="attributes">
           <attribute name="attrs">{'readonly': ['|', ('state', 'in', ('done','cancel')),
             ('is_admin', '=', False)]}</attribute>
+          <!-- El ícono de borrar líneas sólo aparece con is_admin activo:
+               Odoo evalúa el dominio contra el registro del pedido (is_admin
+               está declarado en la vista). Add/edit no se tocan. -->
+          <attribute name="options">{'delete': [('is_admin', '=', True)]}</attribute>
         </xpath>
         <xpath expr="//button[@name='action_draft']" position="attributes">
           <attribute name="invisible">1</attribute>

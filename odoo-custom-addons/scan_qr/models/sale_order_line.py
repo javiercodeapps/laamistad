@@ -10,7 +10,8 @@ presupuesto.
 """
 import logging
 
-from odoo import api, models
+from odoo import api, models, _
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -77,6 +78,20 @@ class SaleOrderLine(models.Model):
         return lines
 
     def unlink(self):
+        # Sólo el modo admin (is_admin=True del pedido) puede borrar líneas
+        # de producto. Las líneas de descuento/redondeo las gestiona el
+        # sistema (apply_discount, _mp_qr_recalc_discount, copy) y se
+        # permiten siempre. El readonly de la vista sólo protege del lado
+        # del cliente: el borrado por RPC se bloquea acá.
+        protected = self.filtered(
+            lambda l: not l._mp_qr_is_discount_line()
+            and not l.order_id.is_admin)
+        if protected:
+            orders = ', '.join(dict.fromkeys(
+                protected.mapped('order_id.name')))
+            raise UserError(_(
+                'No se pueden borrar líneas del pedido %s: sólo el modo '
+                'admin (is_admin) puede eliminar líneas.') % orders)
         orders = self.mapped('order_id')
         lines = self
         # Calcular ANTES de borrar: luego los registros ya no son legibles.
