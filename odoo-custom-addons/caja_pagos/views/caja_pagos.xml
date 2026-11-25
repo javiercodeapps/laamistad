@@ -47,7 +47,7 @@
                 <field name="name" />
 		<field name="origen" />
                 <field name="create_date" />
-                <field name="monto" />
+                <field name="monto"  sum="Total seleccionado" />
                 <field name="cashbox_session" />
                 <field name="user" />
                 <field name="company_id" />

@@ -98,6 +98,21 @@ class PaymentTransaction(models.Model):
             _logger.warning("mp_payment_order_get() called without provider_reference")
             return {}
 
+        # El IPN de Mercado Pago llega DUPLICADO (reintentos + evento por orden
+        # y por pago) y puede coincidir con el botón 'Check order' del wizard.
+        # Sin lock, dos requests procesan el mismo pago en paralelo: ambos leen
+        # state != 'done' antes de que el otro haga commit, ambos confirman el
+        # pedido/facturan, y el segundo revienta con violaciones de unique
+        # (p.ej. 'duplicate key ... mail_followers ... already exists'). El row
+        # lock serializa: el segundo request espera a que el primero haga
+        # commit, relee el estado y sale sin reprocesar.
+        self.env.cr.execute(
+            "SELECT id FROM payment_transaction WHERE id = %s FOR UPDATE",
+            [self.id],
+        )
+        # La fila pudo cambiar mientras esperábamos el lock: re-leerla.
+        self.invalidate_recordset(['state', 'amount'])
+
         mercado_pago = MercadoPagoRequest(self.provider_id.mercado_pago_qr_access_token)
         resp = mercado_pago.call_mercado_pago(
             "get", f"/v1/orders/{self.provider_reference}"
@@ -115,6 +130,13 @@ class PaymentTransaction(models.Model):
         elif status == "expired" or status_detail == "expired":
             self._set_canceled("The order is expired")
         elif status == "paid" or status_detail == 'accredited':
+            # Otro request (IPN duplicado o Check order concurrente) ya
+            # procesó este pago: nada que confirmar ni facturar de nuevo.
+            if self.state == 'done':
+                _logger.info(
+                    "MP QR %s: pago ya procesado por otro request; se ignora.",
+                    self.reference)
+                return resp
             # Recién acá se confirma el presupuesto y se factura (cuando
             # scan_qr está instalado). Antes de marcar 'done' se revalidan el
             # importe y la referencia contra la respuesta de la API: si falla,
@@ -138,6 +160,10 @@ class PaymentTransaction(models.Model):
             self._set_done()
             self._reconcile_after_done()
         elif status == "cancelled":
+            # Ya cancelado por otro request (IPN de vencimiento duplicado o
+            # botón 'Cancel order'): no volver a revertir el pedido.
+            if self.state == 'cancel':
+                return resp
             self._set_canceled("The order was cancelled")
 
         return resp
@@ -147,6 +173,16 @@ class PaymentTransaction(models.Model):
         if not self.provider_reference:
             _logger.warning("mp_payment_order_cancel() called without provider_reference")
             return {}
+
+        # Mismo lock que mp_payment_order_get(): el botón 'Cancel order' y un
+        # IPN de vencimiento/cancelación pueden llegar a la vez. Ambos toman el
+        # lock de la fila ANTES de tocar cualquier otro registro, por lo que no
+        # hay deadlock; el segundo request ve la transacción ya cancelada.
+        self.env.cr.execute(
+            "SELECT id FROM payment_transaction WHERE id = %s FOR UPDATE",
+            [self.id],
+        )
+        self.invalidate_recordset(['state'])
 
         mercado_pago = MercadoPagoRequest(self.provider_id.mercado_pago_qr_access_token)
         resp = mercado_pago.call_mercado_pago(
