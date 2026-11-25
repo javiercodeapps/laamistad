@@ -54,8 +54,8 @@
         </field>
         <button name="action_cancel" position="attributes">
           <attribute name="attrs">{'invisible': ['|', ('state',
-            'not in', ['draft', 'sent','sale']), '&amp;', ('state', '=',
-            'draft'), ('is_admin','=',False)]}</attribute>
+            'not in', ['draft', 'sent','sale']),
+            ('is_admin','=',False)]}</attribute>
           <attribute name="context">{'disable_cancel_warning':
             True}</attribute>
         </button>
