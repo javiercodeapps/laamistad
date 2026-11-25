@@ -1681,6 +1681,24 @@ class SaleOrderQR(models.Model):
                 return total * porcentaje / 100.0
         return 0.0
 
+    def _mp_qr_current_discount(self, sale_type=None):
+        """Importe de descuento a usar para el importe del QR.
+
+        Con ``is_admin`` el descuento es MANUAL (``sale_discount_percent``
+        fijado por el encargado): se reescala contra el total limpio, igual
+        que hacen el onchange de líneas y la rama admin de
+        ``compute_discount()``. Las reglas de ``sale.order.discount`` del
+        tipo 'MP QR' NO aplican acá: el descuento del admin se materializa
+        con el código 'Descuento Empleado'/'Descuento Especial', que no está
+        asociado a ese tipo, y buscarlas devolvía 0 (el QR salía por el
+        total sin descuento). El resto de los pedidos usa la regla.
+        """
+        self.ensure_one()
+        if self.is_admin and self.sale_discount_percent:
+            total = self._mp_qr_clean_total()
+            return total * self.sale_discount_percent / 100.0
+        return self._mp_qr_discount_amount(sale_type)
+
     def _mp_qr_recalc_discount(self, sale_type=None):
         """Deja el presupuesto SIN códigos de descuento y recalcula los importes
         con el tipo indicado. NO aplica las líneas: eso es sólo al facturar.
@@ -1703,7 +1721,10 @@ class SaleOrderQR(models.Model):
                 # Para el resto de los casos NO se pasa este flag.
                 order.compute_discount()
             else:
-                descuento = order._mp_qr_discount_amount(sale_type or order.type_id)
+                # is_admin: el helper respeta el % manual del encargado en
+                # lugar de pisarlo con la regla del tipo (que para MP QR
+                # suele no existir y dejaba el QR por el total completo).
+                descuento = order._mp_qr_current_discount(sale_type or order.type_id)
                 order.write({
                     'sale_discount': descuento,
                     'sale_with_discount': order.amount_total - descuento,
@@ -1766,7 +1787,9 @@ class SaleOrderQR(models.Model):
         # reabrimos el mismo QR. Así se evita un segundo cobro. Si el total del
         # pedido cambió (se agregaron productos), el QR viejo ya no sirve.
         mp_qr_type = self._mp_qr_sale_type()
-        descuento_qr = self._mp_qr_discount_amount(mp_qr_type)
+        # Descuento vigente: con is_admin es el % manual del encargado, no la
+        # regla del tipo 'MP QR' (que devolvía 0 y dejaba el QR por el total).
+        descuento_qr = self._mp_qr_current_discount(mp_qr_type)
         expected_amount = self._mp_qr_clean_total() - descuento_qr - (efectivo_amount or 0)
         pending = self._mp_qr_pending_transactions()
         if pending and float_compare(
@@ -1793,7 +1816,6 @@ class SaleOrderQR(models.Model):
             # otra secuencia; la referencia del QR se crea con el nombre viejo.
             if self.name != name_original:
                 self.name = name_original
-        self.is_admin = False
         # Presupuesto SIN códigos de descuento: sólo importes calculados. Los
         # códigos se agregan recién en _mp_qr_confirm_and_invoice().
         self._mp_qr_recalc_discount(mp_qr_type)
@@ -1813,6 +1835,10 @@ class SaleOrderQR(models.Model):
                 _('No se encontró el proveedor de Mercado Pago QR para la compañía %s. '
                   'Revise la configuración del proveedor o cobre con otro medio de pago.')
                 % self.company_id.name, 'warning', reload=True)
+        # is_admin NO se resetea acá: el descuento manual debe sobrevivir hasta
+        # que _mp_qr_confirm_and_invoice() lo materialice con apply_discount()
+        # (rama admin). Resetearlo al generar el QR hacía que al acreditarse el
+        # pago la factura saliera por el total sin el descuento cobrado.
         return self.pay_mp_qr_wizard()
 
     def _mp_qr_register_cash(self, invoices):
@@ -1878,6 +1904,9 @@ class SaleOrderQR(models.Model):
         # Pago correcto y facturación completa: el tipo 'MP QR' queda firme,
         # ya no hay nada que restaurar.
         self.mp_qr_previous_type_id = False
+        # El descuento manual del admin ya está materializado en las líneas de
+        # la factura: recién acá salimos del modo admin del pedido.
+        self.is_admin = False
         self.message_post(body=_(
             'Pago del QR de Mercado Pago acreditado (%s). Se confirmó el pedido, '
             'se emitieron las facturas %s y se registró el cobro.')
