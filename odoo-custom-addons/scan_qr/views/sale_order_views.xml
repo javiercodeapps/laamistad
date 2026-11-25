@@ -93,7 +93,7 @@
                     type="object"
                     class="btn btn-primary px-3 py-3"
                     context="{'payment_type': 'OTROS'}"
-                    attrs="{'invisible': [('state', 'not in', ['sent','sale'])]}"
+                    invisible="1"
                 />
                 <button
                     name="action_confirm_type"
