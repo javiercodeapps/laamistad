@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bl_afip_status_tree" model="ir.ui.view">
+        <field name="name">bl.afip.status.tree</field>
+        <field name="model">bl.afip.status</field>
+        <field name="arch" type="xml">
+            <tree create="false">
+                <field name="company_id"/>
+                <field name="afip_ws"/>
+                <field name="env_type"/>
+                <field name="state"/>
+                <field name="consecutive_failures"/>
+                <field name="last_check"/>
+                <field name="last_ok"/>
+                <field name="down_since"/>
+                <field name="last_error_type"/>
+                <field name="last_error_summary"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_bl_afip_status_form" model="ir.ui.view">
+        <field name="name">bl.afip.status.form</field>
+        <field name="model">bl.afip.status</field>
+        <field name="arch" type="xml">
+            <form create="false">
+                <header>
+                    <button name="action_probe_http" string="Verificar ahora (rapido)" type="object" class="btn-primary"/>
+                    <button name="action_probe_dummy" string="Verificar con ARCA (Dummy)" type="object"/>
+                    <field name="state" widget="statusbar" statusbar_visible="unknown,error,down,ok"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object" name="action_view_incidents" icon="fa-exclamation-triangle">
+                            <field name="incident_count" widget="statinfo" string="Incidentes"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="company_id" readonly="1"/>
+                            <field name="afip_ws" readonly="1"/>
+                            <field name="env_type" readonly="1"/>
+                            <field name="endpoint" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="last_check" readonly="1"/>
+                            <field name="last_ok" readonly="1"/>
+                            <field name="down_since" readonly="1"/>
+                            <field name="consecutive_failures" readonly="1"/>
+                            <field name="last_operation" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="app_server_status" readonly="1"/>
+                            <field name="db_server_status" readonly="1"/>
+                            <field name="auth_server_status" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="last_error_type" readonly="1"/>
+                        <field name="last_error_summary" readonly="1"/>
+                        <field name="last_error_message" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_bl_afip_incident_tree" model="ir.ui.view">
+        <field name="name">bl.afip.incident.tree</field>
+        <field name="model">bl.afip.incident</field>
+        <field name="arch" type="xml">
+            <tree create="false" edit="false">
+                <field name="create_date"/>
+                <field name="company_id"/>
+                <field name="afip_ws"/>
+                <field name="env_type"/>
+                <field name="operation"/>
+                <field name="error_type"/>
+                <field name="http_status"/>
+                <field name="degraded"/>
+                <field name="test_mode"/>
+                <field name="resolved"/>
+                <field name="resolved_at"/>
+                <field name="downtime_display"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_bl_afip_incident_search" model="ir.ui.view">
+        <field name="name">bl.afip.incident.search</field>
+        <field name="model">bl.afip.incident</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="company_id"/>
+                <field name="afip_ws"/>
+                <field name="error_type"/>
+                <filter name="filter_without_test_mode"
+                        string="Sin simulaciones"
+                        domain="[('test_mode', '=', False)]"/>
+                <filter name="filter_only_test_mode"
+                        string="Solo simulaciones"
+                        domain="[('test_mode', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_bl_afip_incident_form" model="ir.ui.view">
+        <field name="name">bl.afip.incident.form</field>
+        <field name="model">bl.afip.incident</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="status_id"/>
+                            <field name="company_id"/>
+                            <field name="afip_ws"/>
+                            <field name="env_type"/>
+                            <field name="operation"/>
+                            <field name="endpoint"/>
+                            <field name="http_status"/>
+                        </group>
+                        <group>
+                            <field name="error_type"/>
+                            <field name="error_summary"/>
+                            <field name="degraded"/>
+                            <field name="test_mode"/>
+                            <field name="resolved"/>
+                            <field name="resolved_at"/>
+                            <field name="downtime_seconds"/>
+                            <field name="downtime_display"/>
+                            <field name="journal_id"/>
+                            <field name="move_id"/>
+                            <field name="document_type_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="user_message"/>
+                        <field name="response_excerpt" widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bl_afip_status" model="ir.actions.act_window">
+        <field name="name">ARCA - Estado del servicio</field>
+        <field name="res_model">bl.afip.status</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>Monitoreo del estado de los servicios ARCA utilizados para facturacion electronica.</p>
+        </field>
+    </record>
+
+    <record id="action_bl_afip_incident" model="ir.actions.act_window">
+        <field name="name">ARCA - Incidentes</field>
+        <field name="res_model">bl.afip.incident</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_bl_afip_incident_search"/>
+        <field name="help" type="html">
+            <p>Historial de incidentes de conectividad y disponibilidad con ARCA.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_bl_afip_status_root"
+              name="ARCA - Estado del servicio"
+              parent="account.menu_finance_configuration"
+              sequence="95"
+              groups="base.group_user"/>
+
+    <menuitem id="menu_bl_afip_status"
+              name="Estado actual"
+              parent="menu_bl_afip_status_root"
+              action="action_bl_afip_status"
+              sequence="10"
+              groups="base.group_user"/>
+
+    <menuitem id="menu_bl_afip_incident"
+              name="Incidentes"
+              parent="menu_bl_afip_status_root"
+              action="action_bl_afip_incident"
+              sequence="20"
+              groups="base.group_user"/>
+</odoo>

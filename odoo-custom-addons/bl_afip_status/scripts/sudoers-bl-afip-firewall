@@ -1,0 +1,2 @@
+# Permite al usuario del servicio Odoo togglear el bloqueo de ARCA sin password.
+odoo18 ALL=(root) NOPASSWD: /usr/local/bin/bl_afip_firewall_block.sh

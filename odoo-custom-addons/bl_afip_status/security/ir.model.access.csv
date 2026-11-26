@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_bl_afip_status_viewer,bl.afip.status viewer,model_bl_afip_status,bl_afip_status.group_bl_afip_status_viewer,1,0,0,0
+access_bl_afip_incident_viewer,bl.afip.incident viewer,model_bl_afip_incident,bl_afip_status.group_bl_afip_status_viewer,1,0,0,0
+access_bl_afip_status_internal_user,bl.afip.status internal user,model_bl_afip_status,base.group_user,1,0,0,0
+access_bl_afip_incident_internal_user,bl.afip.incident internal user,model_bl_afip_incident,base.group_user,1,0,0,0
+access_bl_afip_status_manager,bl.afip.status manager,model_bl_afip_status,account.group_account_manager,1,1,1,1
+access_bl_afip_incident_manager,bl.afip.incident manager,model_bl_afip_incident,account.group_account_manager,1,1,1,1

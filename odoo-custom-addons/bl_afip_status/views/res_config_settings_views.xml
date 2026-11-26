@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Odoo 16: la vista de Ajustes usa la estructura legacy de divs
+         (app_settings_block / o_setting_box). Los tags <app>/<block>/<setting>
+         son de Odoo 17+. Se agrega como app propio dentro de div.settings para
+         no depender de anclas (block[@id=...]) que en 16 no existen. -->
+    <record id="view_res_config_settings_bl_afip_status" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.bl.afip.status</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block"
+                     data-string="BlackLabs - Estado ARCA"
+                     string="BlackLabs - Estado ARCA"
+                     data-key="bl_afip_status">
+
+                    <h2>BlackLabs - Estado ARCA</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_probe_on_sale_order">
+                            <div class="o_setting_left_pane">
+                                <field name="bl_afip_probe_on_sale_order"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_probe_on_sale_order"/>
+                                <div class="text-muted">
+                                    Sondea el estado de los webservices ARCA cuando se crea una orden de venta.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_precheck_on_invoice">
+                            <div class="o_setting_left_pane">
+                                <field name="bl_afip_precheck_on_invoice"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_precheck_on_invoice"/>
+                                <div class="text-muted">
+                                    Verifica el servicio ARCA antes de pedir el CAE.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_block_invoice_when_down">
+                            <div class="o_setting_left_pane">
+                                <field name="bl_afip_block_invoice_when_down"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_block_invoice_when_down"/>
+                                <div class="text-muted">
+                                    Bloquea la emision cuando ARCA este caido.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_probe_ttl_seconds">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_probe_ttl_seconds"/>
+                                <div class="text-muted">
+                                    TTL de sondeo (segundos): no se re-verifica mas seguido que esto.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-3">
+                                            <field name="bl_afip_probe_ttl_seconds"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_http_timeout">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_http_timeout"/>
+                                <div class="text-muted">
+                                    Timeout HTTP (segundos) para las verificaciones.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-3">
+                                            <field name="bl_afip_http_timeout"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2>BlackLabs - Estado ARCA: modo de prueba</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_test_mode_enabled">
+                            <div class="o_setting_left_pane">
+                                <field name="bl_afip_test_mode_enabled"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_test_mode_enabled"/>
+                                <div class="text-muted">
+                                    Habilita el boton de bloqueo en la barra superior para simular una caida de ARCA. Solo lo ve el administrador del sistema.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_test_block_mode"
+                             attrs="{'invisible': [('bl_afip_test_mode_enabled', '=', False)]}">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_test_block_mode"/>
+                                <div class="text-muted">
+                                    soft no toca la red. firewall corta el trafico real hacia ARCA y requiere el script instalado en el servidor.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-6">
+                                            <field name="bl_afip_test_block_mode"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box" id="bl_afip_test_block_minutes"
+                             attrs="{'invisible': [('bl_afip_test_mode_enabled', '=', False)]}">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bl_afip_test_block_minutes"/>
+                                <div class="text-muted">
+                                    Minutos hasta el desbloqueo automatico.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-3">
+                                            <field name="bl_afip_test_block_minutes"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

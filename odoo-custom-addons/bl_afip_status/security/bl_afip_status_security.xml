@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="group_bl_afip_status_viewer" model="res.groups">
+            <field name="name">ARCA - Estado de servicio (lector)</field>
+            <field name="category_id" ref="base.module_category_hidden"/>
+        </record>
+
+        <record id="account.group_account_invoice" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('bl_afip_status.group_bl_afip_status_viewer'))]"/>
+        </record>
+
+        <record id="rule_bl_afip_status_multi_company" model="ir.rule">
+            <field name="name">bl_afip_status multi compania</field>
+            <field name="model_id" ref="model_bl_afip_status"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+            <field name="groups" eval="[(4, ref('bl_afip_status.group_bl_afip_status_viewer'))]"/>
+        </record>
+
+        <record id="rule_bl_afip_incident_multi_company" model="ir.rule">
+            <field name="name">bl_afip_incident multi compania</field>
+            <field name="model_id" ref="model_bl_afip_incident"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+            <field name="groups" eval="[(4, ref('bl_afip_status.group_bl_afip_status_viewer'))]"/>
+        </record>
+    </data>
+</odoo>

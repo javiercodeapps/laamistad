@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="bl_afip_status.SystrayItem">
+        <div t-if="state.visible" class="o_bl_afip_systray d-flex align-items-center" t-ref="root">
+            <button
+                t-if="showTestButton"
+                type="button"
+                class="btn bl-afip-block-btn"
+                t-att-class="testButtonClass"
+                t-att-disabled="state.loading"
+                t-on-click.stop="toggleTestBlock"
+            >
+                <span t-esc="testButtonLabel"/>
+            </button>
+
+            <div class="bl-afip-top-chip-wrap d-flex flex-column justify-content-center">
+                <button
+                    type="button"
+                    t-attf-class="btn bl-afip-top-chip #{chipClass}"
+                    t-att-title="tooltip"
+                    t-on-click.stop="toggle"
+                >
+                    <span class="bl-afip-top-dot"/>
+                    <span class="bl-afip-top-text" t-esc="shortLabel"/>
+                </button>
+            </div>
+
+            <div t-if="state.open" class="bl-afip-panel" t-on-click.stop="onPanelClick">
+                <div class="bl-afip-panel-header">
+                    <span t-attf-class="bl-afip-panel-badge #{chipClass}">
+                        <span class="bl-afip-top-dot"/>
+                        <span t-esc="shortLabel"/>
+                    </span>
+                </div>
+                <div class="bl-afip-panel-body">
+                    <div t-if="!state.services.length" class="bl-afip-panel-empty">
+                        Todavia no hay servicios ARCA verificados.
+                    </div>
+                    <t t-foreach="state.services" t-as="service" t-key="service.id">
+                        <div class="bl-afip-panel-service">
+                            <div class="bl-afip-panel-service-title">
+                                <span t-attf-class="bl-afip-panel-pip #{chipClassFor(service.level)}"/>
+                                <strong t-esc="service.afip_ws"/>
+                                <span class="bl-afip-panel-muted" t-esc="' - ' + service.state_label"/>
+                            </div>
+                            <div class="bl-afip-panel-meta">
+                                <div t-if="service.company">Compania: <t t-esc="service.company"/></div>
+                                <div t-if="service.last_check">Ultima verificacion: <t t-esc="service.last_check"/></div>
+                                <div t-if="service.down_since">Caido desde: <t t-esc="service.down_since"/></div>
+                                <div t-if="service.level != 'ok' and service.message"
+                                     class="bl-afip-panel-error" t-esc="service.message"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+                <div class="bl-afip-panel-footer">
+                    <button class="btn btn-sm btn-primary" t-on-click.stop="probeNow"
+                            t-att-disabled="state.loading">
+                        <t t-if="state.loading">Verificando...</t>
+                        <t t-else="">Verificar ahora</t>
+                    </button>
+                    <button class="btn btn-sm btn-link" t-on-click.stop="openDetail">Ver detalle</button>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,240 @@
+// Copyright 2026 Ernesto Bernis - BlackLabs
+// Estetica portada literal desde pos_afip_ws_status v17.0.1.7.4
+// (static/src/css/product_screen_afip_status.css)
+
+.o_bl_afip_systray {
+    position: relative;
+}
+
+.bl-afip-block-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    line-height: 1;
+    padding: 0 9px;
+    margin: 0 6px 0 0;
+    box-sizing: border-box;
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.bl-afip-block-btn:hover,
+.bl-afip-block-btn:focus {
+    transform: translateY(-1px);
+}
+
+.bl-afip-block-btn-on {
+    color: #ffffff;
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+    border-color: rgba(127, 29, 29, 0.6);
+    box-shadow: 0 4px 12px rgba(127, 29, 29, 0.3);
+}
+
+.bl-afip-block-btn-off {
+    color: #0f172a;
+    background: linear-gradient(135deg, #dbeafe 0%, #bae6fd 100%);
+    border-color: rgba(30, 64, 175, 0.35);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+}
+
+.bl-afip-top-chip-wrap {
+    margin-right: 8px;
+    margin-top: 0;
+    margin-bottom: 0;
+    gap: 3px;
+    padding: 2px 6px 3px;
+    border-radius: 14px;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(241, 245, 249, 0.88) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.bl-afip-top-chip {
+    // Neutraliza las variables de .btn de Bootstrap del backend.
+    --bs-btn-padding-x: 11px;
+    --bs-btn-padding-y: 0;
+    --bs-btn-font-size: 11px;
+    --bs-btn-line-height: 1;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-border-color: transparent;
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #ffffff;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.4px;
+    padding: 0 11px;
+    margin: 0;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+.bl-afip-top-chip::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    pointer-events: none;
+    background: linear-gradient(
+        110deg,
+        rgba(255, 255, 255, 0.33),
+        rgba(255, 255, 255, 0.08) 42%,
+        rgba(255, 255, 255, 0)
+    );
+}
+
+.bl-afip-top-chip:hover,
+.bl-afip-top-chip:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.28);
+    color: #ffffff;
+}
+
+.bl-afip-top-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.bl-afip-top-text {
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.bl-afip-top-chip-ok { background: linear-gradient(135deg, #0f8f57 0%, #12b76a 100%); }
+.bl-afip-top-chip-warning {
+    background: linear-gradient(135deg, #c2410c 0%, #f59e0b 100%);
+    animation: blAfipChipPulse 2.4s ease-in-out infinite;
+}
+.bl-afip-top-chip-down {
+    background: linear-gradient(135deg, #b42318 0%, #f04438 100%);
+    animation: blAfipChipPulse 1.7s ease-in-out infinite;
+}
+.bl-afip-top-chip-error { background: linear-gradient(135deg, #475467 0%, #667085 100%); }
+.bl-afip-top-chip-loading { background: linear-gradient(135deg, #2563eb 0%, #38bdf8 100%); }
+
+@keyframes blAfipChipPulse {
+    0% { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18); }
+    50% { box-shadow: 0 8px 20px rgba(15, 23, 42, 0.34); }
+    100% { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18); }
+}
+
+// --- Panel desplegable (exclusivo del backend) ---
+.bl-afip-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1050;
+    width: 340px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 12px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.99) 0%, rgba(241, 245, 249, 0.97) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+    color: #0f172a;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+}
+
+.bl-afip-panel-header {
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.bl-afip-panel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.bl-afip-panel-body { padding: 8px 0; }
+
+.bl-afip-panel-empty {
+    color: #667085;
+    font-size: 12px;
+}
+
+.bl-afip-panel-service {
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.35);
+
+    &:last-child { border-bottom: none; }
+}
+
+.bl-afip-panel-service-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+}
+
+.bl-afip-panel-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+    flex: 0 0 auto;
+}
+
+.bl-afip-panel-muted { color: #667085; }
+
+.bl-afip-panel-meta {
+    margin-top: 2px;
+    padding-left: 17px;
+    font-size: 11px;
+    color: #475467;
+}
+
+.bl-afip-panel-error {
+    margin-top: 4px;
+    color: #b42318;
+    font-weight: 600;
+}
+
+.bl-afip-panel-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+@media (max-width: 768px) {
+    .bl-afip-top-chip-wrap { margin-right: 2px; gap: 2px; padding: 2px 4px; }
+    .bl-afip-top-chip { height: 28px; min-height: 28px; padding: 0 8px; font-size: 10px; }
+    .bl-afip-top-text { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+    .bl-afip-panel { width: 92vw; }
+}
