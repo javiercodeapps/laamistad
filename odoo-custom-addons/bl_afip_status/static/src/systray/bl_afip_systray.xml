@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <t t-name="bl_afip_status.SystrayItem">
+    <!-- owl="1" es obligatorio en Odoo 16: loadXML() solo registra los
+         templates con [t-name][owl]. En 17+ es implicito. -->
+    <t t-name="bl_afip_status.SystrayItem" owl="1">
         <div t-if="state.visible" class="o_bl_afip_systray d-flex align-items-center" t-ref="root">
             <button
                 t-if="showTestButton"
