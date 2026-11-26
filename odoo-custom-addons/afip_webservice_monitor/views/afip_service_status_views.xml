@@ -49,6 +49,9 @@
                             <field name="active"/>
                         </group>
                         <group string="Status Information">
+                            <!-- Necesario en la vista: is_available se usa
+                                 en el attrs del grupo 'Error Details'. -->
+                            <field name="is_available" invisible="1"/>
                             <field name="check_date"/>
                             <field name="last_status_code"/>
                             <field name="response_time" widget="float_time"/>
