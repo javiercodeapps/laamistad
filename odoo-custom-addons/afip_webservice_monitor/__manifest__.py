@@ -3,15 +3,16 @@
     'version': '16.0.1.0.0',
     'category': 'Accounting/Localizations',
     'summary': 'Monitor AFIP/ARCA WebService availability and block invoice confirmation when service is down (or hand over to CAEA contingency)',
-    'description': """
-        AFIP/ARCA WebService Monitor
-        =============================
-        * Monitors AFIP/ARCA electronic invoicing web service availability
-        * Displays a warning banner when service is down
-        * Blocks invoice confirmation for Argentinian POS journals when service is unavailable
-        * Automatic periodic checks
-        * Manual refresh option
-    """,
+    # Sin título con subrayado (===): docutils lo interpreta como título de
+    # sección DENTRO de un blockquote (la cadena va indentada) y la
+    # instalación del módulo revienta con "Unexpected section title".
+    'description': """AFIP/ARCA WebService Monitor
+* Monitors AFIP/ARCA electronic invoicing web service availability
+* Displays a warning banner when service is down
+* Blocks invoice confirmation for Argentinian POS journals when service is unavailable
+* Automatic periodic checks
+* Manual refresh option
+""",
     'author': 'Trixocom',
     'website': 'https://trixocom.com',
     'license': 'LGPL-3',
