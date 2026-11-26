@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cron Job to check AFIP services every 5 minutes -->
+        <record id="ir_cron_check_afip_services" model="ir.cron">
+            <field name="name">AFIP: Check Service Status</field>
+            <field name="model_id" ref="model_afip_service_status"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_check_all_services()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <!-- En 16 el default es 1: el cron se desactivaría tras la
+                 primera corrida. -1 = ilimitado. -->
+            <field name="numbercall" eval="-1"/>
+            <field name="doall" eval="False"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

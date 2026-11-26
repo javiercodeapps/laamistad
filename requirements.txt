@@ -32,3 +32,4 @@ mercadopago
 pyjwt
 authlib
 pysaml2
+zeep

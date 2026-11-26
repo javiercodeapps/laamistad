@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_afip_service_status_list" model="ir.ui.view">
+        <field name="name">afip.service.status.list</field>
+        <field name="model">afip.service.status</field>
+        <field name="arch" type="xml">
+            <tree string="AFIP Service Status" decoration-danger="not is_available" decoration-success="is_available">
+                <field name="name"/>
+                <field name="service_type"/>
+                <field name="environment"/>
+                <field name="is_available" widget="boolean_toggle"/>
+                <field name="response_time" widget="float_time"/>
+                <field name="check_date"/>
+                <field name="consecutive_failures"/>
+                <field name="last_status_code"/>
+                <button name="action_refresh_status" 
+                        type="object" 
+                        string="Check Now" 
+                        icon="fa-refresh"
+                        class="btn-primary"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_afip_service_status_form" model="ir.ui.view">
+        <field name="name">afip.service.status.form</field>
+        <field name="model">afip.service.status</field>
+        <field name="arch" type="xml">
+            <form string="AFIP Service Status">
+                <header>
+                    <button name="action_refresh_status" 
+                            string="Check Status Now" 
+                            type="object" 
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Service Information">
+                            <field name="service_type"/>
+                            <field name="environment"/>
+                            <field name="url"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Status Information">
+                            <field name="check_date"/>
+                            <field name="last_status_code"/>
+                            <field name="response_time" widget="float_time"/>
+                            <field name="consecutive_failures"/>
+                        </group>
+                    </group>
+                    <group string="Error Details" attrs="{'invisible': [('is_available', '=', True)]}">
+                        <field name="error_message" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_afip_service_status_kanban" model="ir.ui.view">
+        <field name="name">afip.service.status.kanban</field>
+        <field name="model">afip.service.status</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="service_type"/>
+                <field name="is_available"/>
+                <field name="check_date"/>
+                <field name="response_time"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="mb-2">
+                                <strong>
+                                    <field name="name"/>
+                                </strong>
+                                <span class="float-end">
+                                    <span t-if="record.is_available.raw_value" class="badge text-bg-success"><i class="fa fa-check-circle"/> Online</span>
+                                    <span t-else="" class="badge text-bg-danger"><i class="fa fa-times-circle"/> Offline</span>
+                                </span>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <div><field name="service_type"/></div>
+                                <div><i class="fa fa-clock-o"/> <field name="check_date"/></div>
+                                <div><i class="fa fa-tachometer"/> <field name="response_time"/> s</div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_afip_service_status" model="ir.actions.act_window">
+        <field name="name">AFIP Service Status</field>
+        <field name="res_model">afip.service.status</field>
+        <field name="view_mode">kanban,tree,form</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No AFIP services configured
+            </p>
+            <p>
+                Click the button below to initialize AFIP service monitoring.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem id="menu_afip_service_status"
+              name="AFIP Service Status"
+              parent="account.menu_finance_configuration"
+              action="action_afip_service_status"
+              sequence="100"/>
+</odoo>

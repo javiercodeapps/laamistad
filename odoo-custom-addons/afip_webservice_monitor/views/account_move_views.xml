@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit Account Move Form View - Warning banners -->
+    <record id="view_move_form_inherit_afip_status" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.afip.status</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <!-- Add warning banner after header -->
+            <!-- Add status field -->
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="requires_afip_check" invisible="1"/>
+                <field name="afip_service_available" invisible="1"/>
+                <field name="afip_status_html" widget="html" nolabel="1" colspan="2"
+                       attrs="{'invisible': ['|', ('requires_afip_check', '=', False), ('state', '!=', 'draft')]}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Server Action for checking AFIP status -->
+    <record id="action_check_afip_status_server" model="ir.actions.server">
+        <field name="name">Verificar Estado AFIP</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records[0].action_check_afip_status()
+        </field>
+    </record>
+</odoo>

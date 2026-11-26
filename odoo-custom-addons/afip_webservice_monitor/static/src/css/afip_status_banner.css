@@ -1,0 +1,94 @@
+.afip_status_banner {
+    position: fixed;
+    top: 46px;  /* Below the navbar */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;  /* Lower z-index to not cover menus */
+    width: auto;
+    max-width: 90%;
+    margin: 0;
+    border-radius: 0 0 8px 8px;
+    border: none;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.afip_status_banner .fa-exclamation-triangle {
+    color: #fff;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.afip_status_banner strong {
+    font-size: 1em;
+}
+
+.afip_status_banner .small {
+    font-size: 0.85em;
+    opacity: 0.95;
+}
+
+.afip_status_banner .btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+    font-weight: 600;
+    padding: 4px 12px;
+    font-size: 0.85em;
+}
+
+.afip_status_banner .btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+}
+
+.afip_status_banner .btn-link {
+    text-decoration: none;
+    opacity: 0.8;
+    padding: 4px 8px;
+}
+
+.afip_status_banner .btn-link:hover {
+    opacity: 1;
+}
+
+.afip_status_banner .fa-spin {
+    animation: fa-spin 1s infinite linear;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .afip_status_banner {
+        max-width: 95%;
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+    
+    .afip_status_banner .d-flex.align-items-center.gap-2 {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

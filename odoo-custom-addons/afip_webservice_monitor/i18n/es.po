@@ -1,0 +1,274 @@
+
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* afip_webservice_monitor
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-12-09 14:00+0000\n"
+"PO-Revision-Date: 2024-12-09 14:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: es\n"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_account_move__afip_status_html
+msgid "Estado AFIP"
+msgstr "Estado AFIP"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_account_move__afip_service_available
+msgid "AFIP Service Available"
+msgstr "Servicio AFIP Disponible"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_account_move__requires_afip_check
+msgid "Requires AFIP Check"
+msgstr "Requiere Verificación AFIP"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid ""
+"AFIP/ARCA Web Service is currently unavailable.\n"
+"Please try again later."
+msgstr ""
+"El servicio web de AFIP/ARCA no está disponible.\n"
+"Por favor intente nuevamente más tarde."
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid "AFIP Check Not Required"
+msgstr "Verificación AFIP No Requerida"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid "This invoice does not use an Argentinian POS journal."
+msgstr "Esta factura no utiliza un diario de Punto de Venta Argentino."
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#: model:ir.actions.client,name:afip_webservice_monitor.action_check_afip_status_client
+#: model:ir.ui.menu,name:afip_webservice_monitor.menu_afip_service_status
+msgid "AFIP Service Status"
+msgstr "Estado del Servicio AFIP"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid "Status: %s\nResponse time: %.2fs"
+msgstr "Estado: %s\nTiempo de respuesta: %.2fs"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#: code:addons/afip_webservice_monitor/models/afip_service_status.py:0
+#, python-format
+msgid "Available"
+msgstr "Disponible"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#: code:addons/afip_webservice_monitor/models/afip_service_status.py:0
+#, python-format
+msgid "Unavailable"
+msgstr "No Disponible"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid "Error"
+msgstr "Error"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/account_move.py:0
+#, python-format
+msgid "No AFIP service configured"
+msgstr "No hay servicio AFIP configurado"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__name
+msgid "Service Name"
+msgstr "Nombre del Servicio"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__service_type
+msgid "Service Type"
+msgstr "Tipo de Servicio"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__environment
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_environment
+msgid "Environment"
+msgstr "Entorno"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__url
+msgid "Service URL"
+msgstr "URL del Servicio"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__is_available
+msgid "Available"
+msgstr "Disponible"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__last_status_code
+msgid "Last Status Code"
+msgstr "Último Código de Estado"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__response_time
+msgid "Response Time (seconds)"
+msgstr "Tiempo de Respuesta (segundos)"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__check_date
+msgid "Last Check"
+msgstr "Última Verificación"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__error_message
+msgid "Error Message"
+msgstr "Mensaje de Error"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__consecutive_failures
+msgid "Consecutive Failures"
+msgstr "Fallas Consecutivas"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_afip_service_status__active
+msgid "Active"
+msgstr "Activo"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_timeout
+msgid "Connection Timeout (seconds)"
+msgstr "Tiempo de Espera de Conexión (segundos)"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_check_interval
+msgid "Check Interval (minutes)"
+msgstr "Intervalo de Verificación (minutos)"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_block_on_failure
+msgid "Block Invoice Confirmation on Service Failure"
+msgstr "Bloquear Confirmación de Factura si el Servicio Falla"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_show_banner
+msgid "Show Status Banner"
+msgstr "Mostrar Banner de Estado"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "AFIP Services Checked"
+msgstr "Servicios AFIP Verificados"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "All configured services have been checked."
+msgstr "Todos los servicios configurados han sido verificados."
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "Services Initialized"
+msgstr "Servicios Inicializados"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "AFIP service monitors have been initialized."
+msgstr "Los monitores de servicio AFIP han sido inicializados."
+
+#. module: afip_webservice_monitor
+#: model:ir.ui.menu,name:afip_webservice_monitor.menu_afip_monitor_root
+msgid "AFIP Monitor"
+msgstr "Monitor AFIP"
+
+#. module: afip_webservice_monitor
+#: model:ir.actions.act_window,name:afip_webservice_monitor.action_afip_service_status
+msgid "AFIP Services"
+msgstr "Servicios AFIP"
+
+#. module: afip_webservice_monitor
+#: model:ir.actions.act_window,name:afip_webservice_monitor.action_afip_webservice_monitor_config
+msgid "Settings"
+msgstr "Ajustes"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,help:afip_webservice_monitor.field_res_config_settings__afip_monitor_environment
+msgid "Choose between testing (homologation) or production environment"
+msgstr "Elija entre entorno de pruebas (homologación) o producción"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,help:afip_webservice_monitor.field_res_config_settings__afip_monitor_timeout
+msgid "Maximum time to wait for AFIP service response"
+msgstr "Tiempo máximo de espera para la respuesta del servicio AFIP"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,help:afip_webservice_monitor.field_res_config_settings__afip_monitor_check_interval
+msgid "How often to refresh service status automatically"
+msgstr "Frecuencia de actualización automática del estado del servicio"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,help:afip_webservice_monitor.field_res_config_settings__afip_monitor_block_on_failure
+msgid "Prevent invoice confirmation when AFIP service is unavailable"
+msgstr "Evitar la confirmación de facturas cuando el servicio AFIP no está disponible"
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,help:afip_webservice_monitor.field_res_config_settings__afip_monitor_show_banner
+msgid "Display a banner at the top when AFIP service is down"
+msgstr "Mostrar un banner en la parte superior cuando el servicio AFIP esté caído"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "Service Check Completed"
+msgstr "Verificación de Servicios Completada"
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "Warning: %s service(s) are unavailable. Check the status list for details."
+msgstr "Advertencia: %s servicio(s) no están disponibles. Revise la lista de estados para más detalles."
+
+#. module: afip_webservice_monitor
+#. odoo-python
+#: code:addons/afip_webservice_monitor/models/res_config_settings.py:0
+#, python-format
+msgid "All configured services have been checked and are operational."
+msgstr "Todos los servicios configurados han sido verificados y están operativos."
+
+#. module: afip_webservice_monitor
+#: model:ir.model.fields,field_description:afip_webservice_monitor.field_res_config_settings__afip_monitor_environment
+msgid "AFIP Environment"
+msgstr "Entorno AFIP"
+

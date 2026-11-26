@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_afip" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.afip</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <div class="app_settings_block" data-string="AFIP/ARCA WebService Monitor" 
+                     string="AFIP/ARCA WebService Monitor" 
+                     data-key="afip_webservice_monitor">
+                    
+                    <h2>AFIP/ARCA WebService Monitor</h2>
+                    
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="afip_monitor_block_on_failure"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="afip_monitor_block_on_failure"/>
+                                <div class="text-muted">
+                                    Block invoice confirmation when AFIP service is unavailable
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="afip_monitor_show_banner"/>
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="afip_monitor_show_banner"/>
+                                <div class="text-muted">
+                                    Show warning banner when AFIP service is down
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="afip_monitor_environment" string="Environment"/>
+                                <div class="text-muted">
+                                    Select AFIP environment to monitor
+                                </div>
+                                <div class="content-group">
+                                    <div class="mt16">
+                                        <field name="afip_monitor_environment" class="o_light_label" widget="radio"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="afip_monitor_timeout"/>
+                                <div class="text-muted">
+                                    Maximum time to wait for AFIP service response
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-6">
+                                            <field name="afip_monitor_timeout" class="o_light_label"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="afip_monitor_check_interval"/>
+                                <div class="text-muted">
+                                    How often to refresh service status automatically
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <div class="col-lg-6">
+                                            <field name="afip_monitor_check_interval" class="o_light_label"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="col-12">
+                            <div class="o_setting_box">
+                                <div class="o_setting_left_pane"/>
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">Service Management</span>
+                                    <div class="text-muted">
+                                        Manage AFIP service monitoring
+                                    </div>
+                                    <div class="content-group mt16">
+                                        <button name="action_check_afip_services" 
+                                                string="Check Services Now" 
+                                                type="object" 
+                                                class="btn-primary me-2"
+                                                icon="fa-refresh"/>
+                                        <button name="action_initialize_afip_services" 
+                                                string="Initialize Services" 
+                                                type="object" 
+                                                class="btn-secondary me-2"
+                                                icon="fa-cog"/>
+                                        <button name="action_view_afip_services" 
+                                                string="View Service Status" 
+                                                type="object" 
+                                                class="btn-link"
+                                                icon="fa-list"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

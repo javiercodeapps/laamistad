@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_afip_service_status_user,afip.service.status.user,model_afip_service_status,base.group_user,1,0,0,0
+access_afip_service_status_manager,afip.service.status.manager,model_afip_service_status,account.group_account_manager,1,1,1,1
+access_afip_service_status_system,afip.service.status.system,model_afip_service_status,base.group_system,1,1,1,1

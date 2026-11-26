@@ -1024,6 +1024,23 @@ class SaleOrderQR(models.Model):
                 'el link %s mezcla órdenes de distintas compañías: no se facturó.'
                 % external_reference, reason=reason)
             return False
+        # El MISMO pago puede llegar procesarse a la vez por tres caminos: el
+        # IPN de Mercado Pago, el redirect a /success (que se recarga sola cada
+        # 5s hasta 6 veces) y el botón "Verificar pago". Sin lock, dos requests
+        # confirman/facturan el mismo pago en paralelo: ambos leen el estado
+        # 'no pagado' antes de que el otro haga commit, y el segundo revienta
+        # con violaciones de unique (p.ej. 'duplicate key ... mail_followers
+        # (sale.order, ...)') o registra el cobro dos veces. El row lock
+        # serializa: el segundo espera, relee el estado y sale por el camino
+        # idempotente ("ya estaba registrado").
+        self.env.cr.execute(
+            "SELECT id FROM sale_order WHERE id IN %s FOR UPDATE",
+            [tuple(orders.ids)],
+        )
+        # La fila pudo cambiar mientras esperábamos el lock: invalidar para
+        # re-leer desde la base el estado real de las órdenes.
+        self.env['sale.order'].invalidate_recordset(
+            ['payment_status', 'state', 'type_id', 'invoice_ids'])
         if not payment_id:
             # El redirect de Mercado Pago a veces llega SIN payment_id ni
             # collection_id (p.ej. /success?ref=550133): sólo trae el ref que

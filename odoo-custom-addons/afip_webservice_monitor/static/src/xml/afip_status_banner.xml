@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="afip_webservice_monitor.StatusBanner">
+        <div t-if="state.visible" class="afip_status_banner alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+            <div class="d-flex align-items-center flex-grow-1">
+                <i class="fa fa-exclamation-triangle fa-2x me-3"/>
+                <div>
+                    <strong class="d-block">⚠️ SERVICIO WEB DE AFIP/ARCA NO DISPONIBLE</strong>
+                    <span class="small">
+                        No se pueden confirmar facturas electrónicas hasta que el servicio esté operativo.
+                        <t t-if="state.lastCheck">
+                            Última verificación: <t t-esc="state.lastCheck"/>
+                        </t>
+                    </span>
+                    <t t-if="state.errorMessage">
+                        <div class="small text-muted mt-1">
+                            <i class="fa fa-info-circle"/> <t t-esc="state.errorMessage"/>
+                        </div>
+                    </t>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-warning" t-on-click="onRefreshClick" t-att-disabled="state.loading">
+                    <i class="fa fa-refresh" t-att-class="{'fa-spin': state.loading}"/>
+                    <t t-if="!state.loading"> Verificar</t>
+                    <t t-if="state.loading"> Verificando...</t>
+                </button>
+                <button class="btn btn-sm btn-link text-white" t-on-click="onDismissClick" title="Cerrar">
+                    <i class="fa fa-times"/>
+                </button>
+            </div>
+        </div>
+    </t>
+</templates>
