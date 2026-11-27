@@ -594,6 +594,15 @@ class SaleOrderQR(models.Model):
         orders = orders.sorted('id')
         if not orders:
             raise UserError(_("Debe seleccionar al menos una orden de venta."))
+        # Control del botón "Link MP": un pedido ya cobrado no puede generar
+        # un link nuevo (se cobraría dos veces). Va acá, en el cuello de
+        # botella de TODOS los caminos (botón MP Link del pedido, wizard
+        # múltiple y regeneración), antes de tocar tipo/tags/link.
+        pagadas = orders.filtered(lambda o: o.payment_status == 'Paid')
+        if pagadas:
+            raise UserError(_(
+                "No se puede generar un link de pago de Mercado Pago: "
+                "%s ya está cobrado.") % ", ".join(pagadas.mapped('name')))
         provider = orders[:1]._mp_link_provider()
         # El pedido queda como CTACTE (con tags CTACTE y MP LINK) hasta que el
         # link se cobre; si ya está facturado como CTACTE Factura solo se le
